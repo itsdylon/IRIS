@@ -203,4 +203,4 @@ IRIS/
 
 ## Team
 
-Georgia Tech CS Capstone — Spring 2026
+Georgia Tech Ubi Comp Team IRIS— Spring 2026
