@@ -1,0 +1,153 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 1rem;
+  background: #1a1a2e;
+  color: #e0e0e0;
+}
+
+.app-header h1 {
+  font-size: 1.2rem;
+  margin: 0;
+}
+
+.app-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.sidebar {
+  width: 300px;
+  background: #16213e;
+  color: #e0e0e0;
+  overflow-y: auto;
+  border-right: 1px solid #0f3460;
+}
+
+.map-container {
+  flex: 1;
+}
+
+/* Marker Panel */
+.marker-panel {
+  padding: 1rem;
+}
+
+.marker-panel h2 {
+  font-size: 1rem;
+  margin: 0 0 0.75rem 0;
+}
+
+.marker-panel ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.marker-panel li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem;
+  border-bottom: 1px solid #0f3460;
+}
+
+.marker-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.marker-coords {
+  font-size: 0.75rem;
+  color: #8899aa;
+  font-family: monospace;
+}
+
+.marker-type {
+  font-size: 0.7rem;
+  color: #5588aa;
+  text-transform: uppercase;
+}
+
+.delete-btn {
+  background: none;
+  border: 1px solid #ff4444;
+  color: #ff4444;
+  cursor: pointer;
+  font-size: 1.2rem;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.delete-btn:hover {
+  background: #ff4444;
+  color: white;
+}
+
+.empty {
+  color: #667;
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+/* Device Status */
+.device-status {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.device-status h3 {
+  font-size: 0.85rem;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.device-status ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.device-status li {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #888;
+}
+
+.status-dot.online {
+  background: #44ff44;
+}
+
+.status-dot.offline {
+  background: #ff4444;
+}
+
+.device-type {
+  color: #8899aa;
+  font-size: 0.7rem;
+}
