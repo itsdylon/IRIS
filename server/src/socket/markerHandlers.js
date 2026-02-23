@@ -28,4 +28,7 @@ export function registerMarkerHandlers(io, socket) {
       io.emit('marker:updated', marker)
     }
   })
+  socket.on('marker:updated', (marker) => {
+    setMarkers((prev) => prev.map((m) => (m.id === marker.id ? marker : m)))
+  })
 }
