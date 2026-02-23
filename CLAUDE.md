@@ -51,6 +51,12 @@ cd server && npm install && npm run dev
 cd dashboard && npm install && npm run dev
 ```
 
+## Unity Inspector Steps
+After any code change that adds or modifies `[SerializeField]` fields, new components, or prefab wiring:
+1. Document the required Unity Inspector steps in the README under the appropriate setup section
+2. These are manual steps that agents cannot perform — the README is the only way teammates learn about them
+3. Keep instructions explicit: name the GameObject, the component, the field, and exactly what to drag where
+
 ## Git
 - Branch naming: `feature/short-description`, `fix/short-description`
 - Commit messages: imperative mood, concise
