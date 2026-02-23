@@ -9,7 +9,8 @@ export default function MarkerPanel({ markers, onDelete }) {
             <div className="marker-info">
               <strong>{m.label}</strong>
               <span className="marker-coords">
-                {m.lat.toFixed(4)}, {m.lng.toFixed(4)}
+                {/*{m.lat.toFixed(4)}, {m.lng.toFixed(4)}*/}
+                {m.position.x}, {m.position.y}, {m.position.z}
               </span>
               <span className="marker-type">{m.type}</span>
             </div>

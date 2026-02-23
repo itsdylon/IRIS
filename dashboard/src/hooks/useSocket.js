@@ -18,7 +18,9 @@ export function useMarkers() {
     socket.on('marker:deleted', ({ id }) => {
       setMarkers((prev) => prev.filter((m) => m.id !== id))
     })
-
+    socket.on('marker:updated', (marker) => {
+      setMarkers((prev) => prev.map((m) => (m.id === marker.id ? marker : m)))
+    })
     return () => {
       socket.off('marker:list:response')
       socket.off('marker:created')
