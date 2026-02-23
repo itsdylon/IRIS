@@ -3,7 +3,7 @@ import { MarkerStore } from '../models/Marker.js'
 export function registerMarkerHandlers(io, socket) {
   socket.on('marker:create', (data) => {
     const marker = MarkerStore.create(data)
-    console.log(`[marker:create] ${marker.label || marker.id} at (${marker.lat}, ${marker.lng})`)
+    console.log(`[marker:create] ${marker.label || marker.id}`)
     io.emit('marker:created', marker)
   })
 
@@ -17,6 +17,15 @@ export function registerMarkerHandlers(io, socket) {
     if (deleted) {
       console.log(`[marker:delete] ${id}`)
       io.emit('marker:deleted', { id })
+    }
+  })
+
+  socket.on('marker:place', ({ id, position }) => {
+    if (!id || !position) return
+    const marker = MarkerStore.place(id, position)
+    if (marker) {
+      console.log(`[marker:place] ${marker.label} at (${marker.position.x}, ${marker.position.y}, ${marker.position.z})`)
+      io.emit('marker:updated', marker)
     }
   })
 }
