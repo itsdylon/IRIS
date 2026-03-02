@@ -141,10 +141,14 @@ If the Unity project has already been set up (the scene `Assets/IRIS/Scenes/Main
 2. Rename it to `IRISManager`
 3. **Add Component** → search `IRISManager` → add it
 4. **Add Component** → search `AnchorManager` → add it
-5. In the Inspector, find the **Anchor Manager** component
-6. The **Anchor Prefab** field shows "None (Game Object)"
-7. In the Project panel, navigate to `Assets > IRIS > Prefabs`
-8. **Drag** the `AnchorPrefab` from the Project panel into the **Anchor Prefab** field — it should now show "AnchorPrefab"
+5. **Add Component** → search `C2Client` → add it
+6. In the Inspector, find the **Anchor Manager** component:
+   - **Anchor Prefab** field shows "None (Game Object)" — in the Project panel, navigate to `Assets > IRIS > Prefabs` and **drag** `AnchorPrefab` into this field
+   - **C2 Client** field shows "None" — **drag** the `IRISManager` GameObject from the Hierarchy into this field (Unity resolves to the C2Client component on it)
+7. In the Inspector, find the **C2 Client** component:
+   - **Server Url** → `http://localhost:3000`
+   - **Device Name** → `Quest3`
+   - **Heartbeat Interval** → `10`
 
 #### 4j. Save the Scene
 
@@ -155,9 +159,12 @@ If the Unity project has already been set up (the scene `Assets/IRIS/Scenes/Main
 1. Open the project in Unity Hub
 2. Open the scene at `Assets/IRIS/Scenes/MainAR`
 3. Make sure Meta XR Simulator is enabled: **Oculus** → **Meta XR Simulator** → **Enabled**
-4. Press **Play** (triangle button at the top center)
-5. A cyan cube should appear at position (0, 1.5, 2) — 2 meters in front, at head height
-6. Check the **Console** panel (tab next to Project at the bottom) for: `[AnchorManager] Spawned test marker at (0.0, 1.5, 2.0)`
+4. Start the C2 server first: `cd server && npm run dev`
+5. Press **Play** (triangle button at the top center)
+6. Check the **Console** panel for:
+   - `[C2Client] Connected to C2 server`
+   - `[C2Client] Registered as device: <id>`
+7. Markers created from the dashboard will appear as yellow cubes (pending), turning cyan once placed
 
 ---
 
@@ -195,7 +202,7 @@ IRIS/
         ├── Scripts/
         │   ├── Anchors/           # Spatial anchor management
         │   ├── Markers/           # Marker data + rendering
-        │   ├── Networking/        # C2 server connection (stub)
+        │   ├── Networking/        # Socket.IO client + event DTOs
         │   └── Core/              # App manager
         ├── Prefabs/               # AnchorPrefab, MarkerPrefab
         └── Materials/

@@ -6,11 +6,14 @@ export const MarkerStore = {
   create({ lat, lng, label = '', type = 'generic' }) {
     const marker = {
       id: uuidv4(),
-      lat,
-      lng,
+      lat: lat != null ? parseFloat(lat) : null,
+      lng: lng != null ? parseFloat(lng) : null,
       label,
       type,
+      status: 'pending',
+      position: null,
       createdAt: new Date().toISOString(),
+      placedAt: null,
     }
     markers.set(marker.id, marker)
     return marker
@@ -31,4 +34,22 @@ export const MarkerStore = {
   clear() {
     markers.clear()
   },
+
+  place(id, position) {
+    const marker = markers.get(id)
+    if (!marker) return null
+    marker.status = 'placed'
+    marker.position = {
+      x: parseFloat(position.x) || 0,
+      y: parseFloat(position.y) || 0,
+      z: parseFloat(position.z) || 0,
+    }
+    marker.placedAt = new Date().toISOString()
+    return marker
+  },
+
 }
+
+
+
+

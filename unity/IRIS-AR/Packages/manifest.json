@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "com.itisnajim.socketiounity": "https://github.com/itisnajim/SocketIOUnity.git",
     "com.meta.xr.sdk.all": "85.0.0",
     "com.meta.xr.simulator.synthenvbuilder": "60.0.1",
     "com.unity.collab-proxy": "2.11.3",

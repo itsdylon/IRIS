@@ -12,7 +12,10 @@ export default function MarkerPanel({ markers, onDelete, createMarker }) {
             <div className="marker-info">
               <strong>{m.label}</strong>
               <span className="marker-coords">
-                {m.lat.toFixed(4)}, {m.lng.toFixed(4)}
+                {/*{m.lat.toFixed(4)}, {m.lng.toFixed(4)}*/}
+                {m.position
+                  ? `${m.position.x}, ${m.position.y}, ${m.position.z}`
+                  : 'Pending placement'}
               </span>
               <span className="marker-type">{m.type}</span>
             </div>
