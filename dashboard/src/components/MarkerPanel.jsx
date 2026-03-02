@@ -1,6 +1,9 @@
-export default function MarkerPanel({ markers, onDelete }) {
+import AddMarkerForm from './AddMarkerForm'
+
+export default function MarkerPanel({ markers, onDelete, createMarker }) {
   return (
     <div className="marker-panel">
+      <AddMarkerForm createMarker={createMarker} />
       <h2>Markers ({markers.length})</h2>
       {markers.length === 0 && <p className="empty">Click the map to place a marker</p>}
       <ul>

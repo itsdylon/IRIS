@@ -1,54 +1,58 @@
-import { useState, useEffect } from 'react'
-import socket from '../services/socketService'
+import { useState, useEffect } from "react";
+import socket from "../services/socketService";
 
 export function useMarkers() {
-  const [markers, setMarkers] = useState([])
+	const [markers, setMarkers] = useState([]);
 
-  useEffect(() => {
-    socket.emit('marker:list')
+	useEffect(() => {
+		socket.emit("marker:list");
 
-    socket.on('marker:list:response', (data) => {
-      setMarkers(data)
-    })
+		socket.on("marker:list:response", (data) => {
+			setMarkers(data);
+		});
 
-    socket.on('marker:created', (marker) => {
-      setMarkers((prev) => [...prev, marker])
-    })
+		socket.on("marker:created", (marker) => {
+			setMarkers((prev) => [...prev, marker]);
+		});
 
-    socket.on('marker:deleted', ({ id }) => {
-      setMarkers((prev) => prev.filter((m) => m.id !== id))
-    })
+		socket.on("marker:deleted", ({ id }) => {
+			setMarkers((prev) => prev.filter((m) => m.id !== id));
+		});
 
-    return () => {
-      socket.off('marker:list:response')
-      socket.off('marker:created')
-      socket.off('marker:deleted')
-    }
-  }, [])
+		return () => {
+			socket.off("marker:list:response");
+			socket.off("marker:created");
+			socket.off("marker:deleted");
+		};
+	}, []);
 
-  const createMarker = (data) => {
-    socket.emit('marker:create', data)
-  }
+	const createMarker = (data) => {
+		socket.emit("marker:create", data);
+	};
 
-  const deleteMarker = (id) => {
-    socket.emit('marker:delete', { id })
-  }
+	const deleteMarker = (id) => {
+		socket.emit("marker:delete", { id });
+	};
 
-  return { markers, createMarker, deleteMarker }
+	return { markers, createMarker, deleteMarker };
 }
 
 export function useDevices() {
-  const [devices, setDevices] = useState([])
+	const [devices, setDevices] = useState([]);
 
-  useEffect(() => {
-    socket.on('device:list', (data) => {
-      setDevices(data)
-    })
+	useEffect(() => {
+		socket.on("device:list", (data) => {
+			setDevices(data);
+		});
 
-    return () => {
-      socket.off('device:list')
-    }
-  }, [])
+		return () => {
+			socket.off("device:list");
+		};
+	}, []);
 
-  return { devices }
+	const requestLocation = (id) => {
+		socket.emit("device:request-location", { id });
+	};
+
+	return { devices, requestLocation };
 }

@@ -10,6 +10,43 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 })
 
+// Custom icons using leaflet-color-markers URLs
+const iconGreen = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+})
+
+const iconBlue = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+})
+
+const iconRed = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+})
+
+const iconOrange = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-orange.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41]
+})
+
 // Georgia Tech campus center
 const GT_CENTER = [33.7756, -84.3963]
 
@@ -30,7 +67,7 @@ function MapClickHandler({ onMapClick }) {
   return null
 }
 
-export default function MapView({ markers, onCreateMarker }) {
+export default function MapView({ markers, devices, onCreateMarker, highlightedDeviceId, userLocation }) {
   return (
     <MapContainer
       center={GT_CENTER}
@@ -51,6 +88,26 @@ export default function MapView({ markers, onCreateMarker }) {
           </Popup>
         </Marker>
       ))}
-    </MapContainer>
+      {devices.filter(d => d.lat && d.lng).map((d) => (
+        <Marker
+          key={d.id}
+          position={[d.lat, d.lng]}
+          icon={d.id === highlightedDeviceId ? iconRed : iconBlue}
+        >
+          <Popup>
+            <strong>{d.name}</strong>
+            <br />
+            Type: {d.type}
+            <br />
+            Status: {d.status}
+          </Popup>
+        </Marker>
+      ))}      {userLocation && (
+        <Marker position={[userLocation.lat, userLocation.lng]} icon={iconOrange}>
+          <Popup>
+            <strong>Your Location</strong>
+          </Popup>
+        </Marker>
+      )}    </MapContainer>
   )
 }

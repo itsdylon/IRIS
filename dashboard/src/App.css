@@ -151,3 +151,54 @@
   color: #8899aa;
   font-size: 0.7rem;
 }
+
+/* Add Marker Form */
+.add-marker-form {
+  background: #1a1a2e;
+  padding: 1rem;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+}
+
+.add-marker-form h3 {
+  font-size: 1rem;
+  margin: 0 0 0.75rem 0;
+  color: #e0e0e0;
+}
+
+.add-marker-form .form-group {
+  margin-bottom: 0.75rem;
+}
+
+.add-marker-form label {
+  display: block;
+  font-size: 0.85rem;
+  margin-bottom: 0.25rem;
+  color: #a0a0c0;
+}
+
+.add-marker-form input {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #0f3460;
+  background: #101a30;
+  color: #e0e0e0;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.add-marker-form button {
+  width: 100%;
+  padding: 0.6rem;
+  background: #50c878;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.add-marker-form button:hover {
+  background: #40a060;
+}
