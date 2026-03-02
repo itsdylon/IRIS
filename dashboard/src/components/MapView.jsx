@@ -42,7 +42,7 @@ export default function MapView({ markers, onCreateMarker }) {
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       <MapClickHandler onMapClick={onCreateMarker} />
-      {markers.map((m) => (
+      {markers.filter((m) => m.lat != null && m.lng != null).map((m) => (
         <Marker key={m.id} position={[m.lat, m.lng]}>
           <Popup>
             <strong>{m.label}</strong>

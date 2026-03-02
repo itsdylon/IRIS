@@ -3,9 +3,11 @@ import { v4 as uuidv4 } from 'uuid'
 const markers = new Map()
 
 export const MarkerStore = {
-  create({ label = '', type = 'generic' }) {
+  create({ lat, lng, label = '', type = 'generic' }) {
     const marker = {
       id: uuidv4(),
+      lat: lat != null ? parseFloat(lat) : null,
+      lng: lng != null ? parseFloat(lng) : null,
       label,
       type,
       status: 'pending',
