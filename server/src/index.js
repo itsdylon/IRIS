@@ -4,6 +4,7 @@ import { Server } from 'socket.io'
 import cors from 'cors'
 import { config } from './config.js'
 import { registerSocketHandlers } from './socket/index.js'
+import { MarkerStore } from './models/Marker.js'
 
 const app = express()
 const httpServer = createServer(app)
@@ -20,6 +21,27 @@ app.use(express.json())
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', uptime: process.uptime() })
+})
+
+app.get('/api/config', (req, res) => {
+  res.json(config)
+})
+
+app.get('/api/markers', (req, res) => {
+  res.json(MarkerStore.list())
+})
+
+app.get('/api/markers/:id', (req, res) => {
+  const marker = MarkerStore.get(req.params.id)
+  if (!marker) return res.status(404).json({error: 'Not found'})
+  res.json(marker)
+})
+
+app.delete('/api/markers/:id', (req, res) => {
+  const deleted = MarkerStore.delete(req.params.id)
+  if (!deleted) return res.status(404).json({error : 'Not found'})
+  io.emit('marker:deleted', {id:req.params.id})
+  res.json({ok:true})
 })
 
 registerSocketHandlers(io)

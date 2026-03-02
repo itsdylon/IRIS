@@ -2,6 +2,16 @@ import { MarkerStore } from '../models/Marker.js'
 
 export function registerMarkerHandlers(io, socket) {
   socket.on('marker:create', (data) => {
+    if (data.lat != null && (typeof data.lat !== 'number' || data.lat < -90 || data.lat > 90)) {
+      return socket.emit('marker:error', {message : 'Invalid latitude'})
+    }
+    if (data.lng != data && (typeof data.lng !== 'number' || data.lng < -180 || data.lng > 180)) {
+      return socket.emit('marker:error', {message: 'Invalid longitude'})
+    }
+    if (data.type && !config.markerTypes.includes(data.type)) {
+      return socket.emit('marker:error', {message: `Invalid type: ${data.type}`})
+    }
+
     const marker = MarkerStore.create(data)
     console.log(`[marker:create] ${marker.label || marker.id}`)
     io.emit('marker:created', marker)
