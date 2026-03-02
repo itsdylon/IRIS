@@ -1,8 +1,10 @@
-# Workstream 1: Geo Conversion Core (Unity)
+# Workstream 1: Geo Conversion Core (Unity) — CLOSED
 
 **Milestone 2 — Week of March 2–8, 2026**
 **Priority:** Critical path — Workstreams 2 and 3 depend on this
 **Estimated effort:** 1–2 days
+**Status:** CLOSED — Completed March 2, 2026
+**Commit:** `3c50ddf` on `main`
 
 ---
 
@@ -147,3 +149,36 @@ After completing all tasks, this test should work:
 | `unity/IRIS-AR/Assets/IRIS/Scripts/Markers/MarkerData.cs` | Edit — add `lat`, `lng` fields |
 | `unity/IRIS-AR/Assets/IRIS/Scripts/Networking/C2Client.cs` | Edit — parse `lat`/`lng` in `ParseMarker()` |
 | `unity/IRIS-AR/Assets/IRIS/Scripts/Anchors/AnchorManager.cs` | Edit — geo conversion in `HandleMarkerCreated()`, add reference fields |
+
+---
+
+## Implementation Notes
+
+### Additional files changed (beyond original plan)
+
+| File | Action | Reason |
+|------|--------|--------|
+| `unity/IRIS-AR/Assets/IRIS/Scripts/Networking/MarkerEventData.cs` | Edit — fields to properties | `System.Text.Json` only serializes properties, not fields |
+| `unity/IRIS-AR/Assets/IRIS/Scripts/Core/IRISManager.cs` | Edit — add `Application.runInBackground = true` | Meta XR SDK pauses app on focus loss, blocking socket event dispatch |
+| `server/src/socket/markerHandlers.js` | Edit — import config, fix lng validation typo | Pre-existing bugs: missing `config` import, `data.lng != data` instead of `data.lng != null` |
+| `dashboard/src/components/MapView.jsx` | Edit — `'generic'` to `'general'` | Dashboard sent a marker type not in the server's allowed list, causing silent rejection |
+
+### Bugs discovered and fixed during implementation
+
+1. **Newtonsoft vs System.Text.Json mismatch** — SocketIOUnity uses `System.Text.Json` internally but `C2Client` was deserializing into Newtonsoft `JObject`/`JArray`. This silently failed for any non-empty payload. Rewrote all JSON handling in `C2Client.cs` to use `System.Text.Json.JsonElement`.
+
+2. **Payload serialization failure** — All emit payload classes (`DeviceRegisterPayload`, `MarkerPlacePayload`, etc.) used public fields. `System.Text.Json` only serializes properties by default, so every emit sent `{}`. Converted all fields to `{ get; set; }` properties in `MarkerEventData.cs`.
+
+3. **Background thread crashes** — Socket callbacks run on `_ThreadPoolWaitCallback` (not the Unity main thread despite `unityThreadScope = Update`). `AnchorManager` called `Instantiate` from these callbacks, which requires the main thread. Exceptions were silently swallowed by SocketIOUnity's `TryInvoke`. Fixed by adding `ConcurrentQueue<T>` buffers drained in `Update()`.
+
+4. **App pausing on alt-tab** — Meta XR SDK calls `OnApplicationPause(true)` when Unity Editor loses focus, halting `Update()` and preventing socket event dispatch. Fixed with `Application.runInBackground = true` in `IRISManager.Awake()`.
+
+5. **Server crash on marker create** — `markerHandlers.js` referenced `config` without importing it. Also had a typo: `data.lng != data` instead of `data.lng != null`.
+
+6. **Silent marker rejection** — Dashboard sent `type: 'generic'` but server only accepts `['waypoint', 'threat', 'objective', 'info', 'general', 'other']`. Server emitted `marker:error` but dashboard had no listener. Changed to `'general'`.
+
+### Key architectural decisions
+
+- **`System.Text.Json` is the standard for this project.** SocketIOUnity uses it internally. All Unity-side JSON parsing and payload serialization must use `System.Text.Json`, not Newtonsoft. Future workstreams must follow this convention.
+- **Main-thread dispatch via ConcurrentQueue.** Socket callbacks arrive on background threads. Any code that touches Unity APIs (Instantiate, GetComponent, Camera.main, etc.) must be queued and drained in `Update()`. The pattern established in `AnchorManager` should be reused.
+- **Marker color coding:** Cyan = already placed with known position, Green = geo-converted from lat/lng, Yellow = fallback (no geo data, spawned in front of camera).
