@@ -22,7 +22,7 @@ function MapClickHandler({ onMapClick }) {
           lat: e.latlng.lat,
           lng: e.latlng.lng,
           label: label || 'Untitled',
-          type: 'generic',
+          type: 'general',
         })
       }
     },

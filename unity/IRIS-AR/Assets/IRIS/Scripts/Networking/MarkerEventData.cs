@@ -5,23 +5,23 @@ namespace IRIS.Networking
     [Serializable]
     public class MarkerCreatePayload
     {
-        public string label;
-        public string type;
+        public string label { get; set; }
+        public string type { get; set; }
     }
 
     [Serializable]
     public class MarkerPlacePayload
     {
-        public string id;
-        public PositionPayload position;
+        public string id { get; set; }
+        public PositionPayload position { get; set; }
     }
 
     [Serializable]
     public class PositionPayload
     {
-        public float x;
-        public float y;
-        public float z;
+        public float x { get; set; }
+        public float y { get; set; }
+        public float z { get; set; }
 
         public PositionPayload(float x, float y, float z)
         {
@@ -34,27 +34,27 @@ namespace IRIS.Networking
     [Serializable]
     public class MarkerDeletePayload
     {
-        public string id;
+        public string id { get; set; }
     }
 
     [Serializable]
     public class DeviceRegisterPayload
     {
-        public string name;
-        public string type;
+        public string name { get; set; }
+        public string type { get; set; }
     }
 
     [Serializable]
     public class DeviceRegisteredPayload
     {
-        public string id;
-        public string name;
-        public string type;
+        public string id { get; set; }
+        public string name { get; set; }
+        public string type { get; set; }
     }
 
     [Serializable]
     public class DeviceHeartbeatPayload
     {
-        public string id;
+        public string id { get; set; }
     }
 }

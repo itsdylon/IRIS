@@ -1,10 +1,10 @@
 using System;
 using System.Collections;
+using System.Text.Json;
 using UnityEngine;
 using SocketIOClient;
 using SocketIOClient.Transport;
 using IRIS.Markers;
-using Newtonsoft.Json.Linq;
 
 namespace IRIS.Networking
 {
@@ -54,14 +54,14 @@ namespace IRIS.Networking
         {
             _socket.On("device:registered", (response) =>
             {
-                var data = response.GetValue<JObject>();
-                _deviceId = data["id"]?.ToString();
+                var data = response.GetValue<JsonElement>();
+                _deviceId = data.GetProperty("id").GetString();
                 Debug.Log($"[C2Client] Registered as device: {_deviceId}");
             });
 
             _socket.On("marker:created", (response) =>
             {
-                var marker = ParseMarker(response.GetValue<JObject>());
+                var marker = ParseMarker(response.GetValue<JsonElement>());
                 if (marker != null)
                 {
                     Debug.Log($"[C2Client] marker:created — {marker.label} (status: {marker.status})");
@@ -71,7 +71,7 @@ namespace IRIS.Networking
 
             _socket.On("marker:updated", (response) =>
             {
-                var marker = ParseMarker(response.GetValue<JObject>());
+                var marker = ParseMarker(response.GetValue<JsonElement>());
                 if (marker != null)
                 {
                     Debug.Log($"[C2Client] marker:updated — {marker.label} (status: {marker.status})");
@@ -81,8 +81,8 @@ namespace IRIS.Networking
 
             _socket.On("marker:deleted", (response) =>
             {
-                var data = response.GetValue<JObject>();
-                var id = data["id"]?.ToString();
+                var data = response.GetValue<JsonElement>();
+                var id = data.GetProperty("id").GetString();
                 if (!string.IsNullOrEmpty(id))
                 {
                     Debug.Log($"[C2Client] marker:deleted — {id}");
@@ -92,11 +92,11 @@ namespace IRIS.Networking
 
             _socket.On("marker:list:response", (response) =>
             {
-                var markers = response.GetValue<JArray>();
-                Debug.Log($"[C2Client] marker:list:response — {markers.Count} markers");
-                foreach (var token in markers)
+                var arr = response.GetValue<JsonElement>();
+                Debug.Log($"[C2Client] marker:list:response — {arr.GetArrayLength()} markers");
+                foreach (var token in arr.EnumerateArray())
                 {
-                    var marker = ParseMarker((JObject)token);
+                    var marker = ParseMarker(token);
                     if (marker != null)
                     {
                         OnMarkerCreated?.Invoke(marker);
@@ -174,27 +174,26 @@ namespace IRIS.Networking
             _socket.Emit("marker:list");
         }
 
-        private MarkerData ParseMarker(JObject obj)
+        private MarkerData ParseMarker(JsonElement obj)
         {
-            if (obj == null) return null;
-
             var marker = new MarkerData(
-                obj["id"]?.ToString() ?? "",
-                obj["label"]?.ToString() ?? "",
-                obj["type"]?.ToString() ?? "generic"
+                obj.GetProperty("id").GetString() ?? "",
+                obj.TryGetProperty("label", out var labelEl) ? labelEl.GetString() ?? "" : "",
+                obj.TryGetProperty("type", out var typeEl) ? typeEl.GetString() ?? "generic" : "generic"
             );
 
-            marker.status = obj["status"]?.ToString() ?? "pending";
-            marker.createdAt = obj["createdAt"]?.ToString();
-            marker.placedAt = obj["placedAt"]?.ToString();
+            marker.status = obj.TryGetProperty("status", out var statusEl) ? statusEl.GetString() ?? "pending" : "pending";
+            marker.createdAt = obj.TryGetProperty("createdAt", out var createdEl) && createdEl.ValueKind != JsonValueKind.Null ? createdEl.GetString() : null;
+            marker.placedAt = obj.TryGetProperty("placedAt", out var placedEl) && placedEl.ValueKind != JsonValueKind.Null ? placedEl.GetString() : null;
+            marker.lat = obj.TryGetProperty("lat", out var latEl) && latEl.ValueKind == JsonValueKind.Number ? latEl.GetDouble() : 0;
+            marker.lng = obj.TryGetProperty("lng", out var lngEl) && lngEl.ValueKind == JsonValueKind.Number ? lngEl.GetDouble() : 0;
 
-            var pos = obj["position"] as JObject;
-            if (pos != null)
+            if (obj.TryGetProperty("position", out var posEl) && posEl.ValueKind == JsonValueKind.Object)
             {
                 marker.position = new MarkerPosition(new Vector3(
-                    pos["x"]?.Value<float>() ?? 0f,
-                    pos["y"]?.Value<float>() ?? 0f,
-                    pos["z"]?.Value<float>() ?? 0f
+                    posEl.TryGetProperty("x", out var xEl) ? (float)xEl.GetDouble() : 0f,
+                    posEl.TryGetProperty("y", out var yEl) ? (float)yEl.GetDouble() : 0f,
+                    posEl.TryGetProperty("z", out var zEl) ? (float)zEl.GetDouble() : 0f
                 ));
             }
 

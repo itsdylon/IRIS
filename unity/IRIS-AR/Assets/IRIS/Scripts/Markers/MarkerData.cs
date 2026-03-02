@@ -13,6 +13,8 @@ namespace IRIS.Markers
         public MarkerPosition position;
         public string createdAt;
         public string placedAt;
+        public double lat;
+        public double lng;
 
         public MarkerData(string id, string label, string type)
         {

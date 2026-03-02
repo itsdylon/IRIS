@@ -21,6 +21,7 @@ namespace IRIS.Core
                 c2Client = GetComponent<C2Client>();
             }
 
+            Application.runInBackground = true;
             Debug.Log("[IRISManager] IRIS system initialized");
         }
     }
