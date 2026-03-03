@@ -62,7 +62,7 @@ namespace IRIS.Anchors
             if (marker.status == "placed" && marker.position != null)
             {
                 var anchor = SpawnAnchor(marker.GetPositionVector(), marker);
-                SetAnchorColor(anchor, Color.cyan);
+                SetAnchorType(anchor, marker.type);
                 _activeAnchors[marker.id] = anchor;
                 Debug.Log($"[AnchorManager] Spawned placed marker '{marker.label}' at known position");
             }
@@ -70,7 +70,7 @@ namespace IRIS.Anchors
             {
                 var spawnPos = GeoUtils.LatLngToUnityPosition(marker.lat, marker.lng, referenceLat, referenceLng);
                 var anchor = SpawnAnchor(spawnPos, marker);
-                SetAnchorColor(anchor, Color.green);
+                SetAnchorType(anchor, marker.type);
                 _activeAnchors[marker.id] = anchor;
 
                 c2Client.EmitMarkerPlace(marker.id, spawnPos);
@@ -84,7 +84,7 @@ namespace IRIS.Anchors
                     : new Vector3(0f, 1.5f, 2f);
 
                 var anchor = SpawnAnchor(spawnPos, marker);
-                SetAnchorColor(anchor, Color.yellow);
+                SetAnchorType(anchor, marker.type, isPending: true);
                 _activeAnchors[marker.id] = anchor;
 
                 c2Client.EmitMarkerPlace(marker.id, spawnPos);
@@ -97,7 +97,7 @@ namespace IRIS.Anchors
             if (!_activeAnchors.TryGetValue(marker.id, out var anchor)) return;
             if (anchor == null) return;
 
-            SetAnchorColor(anchor, Color.cyan);
+            SetAnchorType(anchor, marker.type);
             Debug.Log($"[AnchorManager] Marker '{marker.label}' updated to placed");
         }
 
@@ -114,15 +114,20 @@ namespace IRIS.Anchors
             Debug.Log($"[AnchorManager] Destroyed marker {markerId}");
         }
 
-        private void SetAnchorColor(GameObject anchor, Color color)
+        private void SetAnchorType(GameObject anchor, string type, bool isPending = false)
         {
             if (anchor == null) return;
 
             var visualizer = anchor.GetComponent<AnchorVisualizer>();
-            if (visualizer != null)
+            if (visualizer == null) return;
+
+            if (isPending)
             {
-                visualizer.SetColor(color);
+                visualizer.SetTypePending(type);
+                return;
             }
+
+            visualizer.SetType(type);
         }
 
         public void SpawnTestMarker()

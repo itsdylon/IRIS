@@ -8,5 +8,5 @@ export const config = {
     lng: -84.3963,
     label: 'Georgia Tech Campus'
   },
-  markerTypes: ['waypoint', 'threat', 'objective', 'info', 'general', 'other']
+  markerTypes: ['waypoint', 'threat', 'objective', 'info', 'generic']
 }

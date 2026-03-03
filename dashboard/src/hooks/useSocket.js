@@ -25,6 +25,7 @@ export function useMarkers() {
       socket.off('marker:list:response')
       socket.off('marker:created')
       socket.off('marker:deleted')
+      socket.off('marker:updated')
     }
   }, [])
 
