@@ -168,6 +168,22 @@ namespace IRIS.Networking
             Debug.Log($"[C2Client] marker:place — {markerId} at ({position.x:F2}, {position.y:F2}, {position.z:F2})");
         }
 
+        public void EmitMarkerCreate(double lat, double lng, string label, string type)
+        {
+            if (!IsConnected) return;
+
+            var payload = new MarkerCreatePayload
+            {
+                lat = lat,
+                lng = lng,
+                label = label,
+                type = type
+            };
+
+            _socket.Emit("marker:create", payload);
+            Debug.Log($"[C2Client] marker:create — '{label}' at ({lat:F6}, {lng:F6})");
+        }
+
         public void RequestMarkerList()
         {
             if (!IsConnected) return;

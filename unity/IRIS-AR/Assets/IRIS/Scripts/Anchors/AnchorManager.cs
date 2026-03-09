@@ -1,9 +1,10 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using UnityEngine;
+using CesiumForUnity;
+using Unity.Mathematics;
 using IRIS.Markers;
 using IRIS.Networking;
-using IRIS.Geo;
 
 namespace IRIS.Anchors
 {
@@ -11,12 +12,9 @@ namespace IRIS.Anchors
     {
         [SerializeField] private GameObject anchorPrefab;
         [SerializeField] private C2Client c2Client;
-        [SerializeField] private Vector3 testMarkerPosition = new Vector3(0f, 1.5f, 2f);
+        [SerializeField] private CesiumGeoreference georeference;
+        [SerializeField] private float markerAltitude = 2f;
         [SerializeField] private bool spawnTestMarkerOnStart = false;
-
-        [Header("Geo Reference (Origin Point)")]
-        [SerializeField] private double referenceLat = 33.7756;
-        [SerializeField] private double referenceLng = -84.3963;
 
         private readonly Dictionary<string, GameObject> _activeAnchors = new Dictionary<string, GameObject>();
         private readonly ConcurrentQueue<MarkerData> _pendingCreated = new ConcurrentQueue<MarkerData>();
@@ -25,6 +23,15 @@ namespace IRIS.Anchors
 
         private void Start()
         {
+            if (georeference == null)
+            {
+                georeference = FindObjectOfType<CesiumGeoreference>();
+                if (georeference != null)
+                    Debug.Log("[AnchorManager] Auto-found CesiumGeoreference in scene");
+                else
+                    Debug.LogWarning("[AnchorManager] No CesiumGeoreference found — markers won't be geo-positioned");
+            }
+
             if (spawnTestMarkerOnStart)
             {
                 SpawnTestMarker();
@@ -59,22 +66,17 @@ namespace IRIS.Anchors
         {
             if (_activeAnchors.ContainsKey(marker.id)) return;
 
-            if (marker.status == "placed" && marker.position != null)
+            if (marker.lat != 0 && marker.lng != 0)
             {
-                var anchor = SpawnAnchor(marker.GetPositionVector(), marker);
-                SetAnchorType(anchor, marker.type);
-                _activeAnchors[marker.id] = anchor;
-                Debug.Log($"[AnchorManager] Spawned placed marker '{marker.label}' at known position");
-            }
-            else if (marker.lat != 0 && marker.lng != 0)
-            {
-                var spawnPos = GeoUtils.LatLngToUnityPosition(marker.lat, marker.lng, referenceLat, referenceLng);
-                var anchor = SpawnAnchor(spawnPos, marker);
-                SetAnchorType(anchor, marker.type);
-                _activeAnchors[marker.id] = anchor;
+                var anchor = SpawnAnchor(Vector3.zero, marker);
+                var globeAnchor = anchor.GetComponent<CesiumGlobeAnchor>();
+                if (globeAnchor == null)
+                    globeAnchor = anchor.AddComponent<CesiumGlobeAnchor>();
+                globeAnchor.longitudeLatitudeHeight = new double3(marker.lng, marker.lat, markerAltitude);
 
-                c2Client.EmitMarkerPlace(marker.id, spawnPos);
-                Debug.Log($"[AnchorManager] Spawned geo marker '{marker.label}' at ({spawnPos.x:F2}, {spawnPos.y:F2}, {spawnPos.z:F2}) from lat/lng ({marker.lat}, {marker.lng})");
+                SetAnchorType(anchor, marker.type);
+                _activeAnchors[marker.id] = anchor;
+                Debug.Log($"[AnchorManager] Spawned geo marker '{marker.label}' at lat/lng ({marker.lat:F6}, {marker.lng:F6})");
             }
             else
             {
@@ -86,9 +88,7 @@ namespace IRIS.Anchors
                 var anchor = SpawnAnchor(spawnPos, marker);
                 SetAnchorType(anchor, marker.type, isPending: true);
                 _activeAnchors[marker.id] = anchor;
-
-                c2Client.EmitMarkerPlace(marker.id, spawnPos);
-                Debug.Log($"[AnchorManager] Spawned pending marker '{marker.label}' 2m in front, reporting position");
+                Debug.Log($"[AnchorManager] Spawned pending marker '{marker.label}' near camera (no lat/lng)");
             }
         }
 
@@ -98,7 +98,7 @@ namespace IRIS.Anchors
             if (anchor == null) return;
 
             SetAnchorType(anchor, marker.type);
-            Debug.Log($"[AnchorManager] Marker '{marker.label}' updated to placed");
+            Debug.Log($"[AnchorManager] Marker '{marker.label}' updated");
         }
 
         private void HandleMarkerDeleted(string markerId)
@@ -133,8 +133,12 @@ namespace IRIS.Anchors
         public void SpawnTestMarker()
         {
             var data = new MarkerData("test-001", "Test Marker", "hardcoded");
-            SpawnAnchor(testMarkerPosition, data);
-            Debug.Log($"[AnchorManager] Spawned test marker at {testMarkerPosition}");
+            var anchor = SpawnAnchor(Vector3.zero, data);
+            var globeAnchor = anchor.GetComponent<CesiumGlobeAnchor>();
+            if (globeAnchor == null)
+                globeAnchor = anchor.AddComponent<CesiumGlobeAnchor>();
+            globeAnchor.longitudeLatitudeHeight = new double3(-84.3963, 33.7756, markerAltitude);
+            Debug.Log("[AnchorManager] Spawned test marker at GT campus origin");
         }
 
         public GameObject SpawnAnchor(Vector3 position, MarkerData data)
@@ -145,7 +149,8 @@ namespace IRIS.Anchors
                 return null;
             }
 
-            var anchor = Instantiate(anchorPrefab, position, Quaternion.identity);
+            var parent = georeference != null ? georeference.transform : null;
+            var anchor = Instantiate(anchorPrefab, position, Quaternion.identity, parent);
 
             var visualizer = anchor.GetComponent<AnchorVisualizer>();
             if (visualizer != null)
@@ -168,14 +173,26 @@ namespace IRIS.Anchors
             var controllerRot = OVRInput.GetLocalControllerRotation(OVRInput.Controller.RTouch);
             var spawnPos = controllerPos + controllerRot * Vector3.forward * 0.5f;
 
-            var data = new MarkerData(
-                System.Guid.NewGuid().ToString(),
-                "Placed Marker",
-                "manual"
-            );
+            EmitMarkerCreateFromWorldPosition(spawnPos, "Placed Marker", "waypoint");
+        }
 
-            SpawnAnchor(spawnPos, data);
-            Debug.Log($"[AnchorManager] Placed marker at {spawnPos}");
+        public void PlaceMarkerAtCamera()
+        {
+            var cam = Camera.main;
+            if (cam == null) return;
+
+            var spawnPos = cam.transform.position + cam.transform.forward * 2f;
+            EmitMarkerCreateFromWorldPosition(spawnPos, "Placed Marker", "waypoint");
+        }
+
+        private void EmitMarkerCreateFromWorldPosition(Vector3 worldPos, string label, string type)
+        {
+            if (c2Client == null || georeference == null) return;
+
+            double3 ecef = georeference.TransformUnityPositionToEarthCenteredEarthFixed(new double3(worldPos.x, worldPos.y, worldPos.z));
+            double3 llh = CesiumWgs84Ellipsoid.EarthCenteredEarthFixedToLongitudeLatitudeHeight(ecef);
+            c2Client.EmitMarkerCreate(llh.y, llh.x, label, type);
+            Debug.Log($"[AnchorManager] Emitting marker:create at lat/lng ({llh.y:F6}, {llh.x:F6})");
         }
 
         private void OnDestroy()

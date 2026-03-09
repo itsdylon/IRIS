@@ -91,13 +91,58 @@ If the Unity project has already been set up (the scene `Assets/IRIS/Scenes/Main
 1. Top menu → **Oculus** → **Meta XR Simulator** → check **Enabled**
 2. This lets you test in the editor without a headset
 
-#### 4d. Create the AR Scene
+#### 4d. Verify Cesium for Unity Package
+
+The Cesium package is declared in `Packages/manifest.json` and resolves automatically on project open.
+
+1. Confirm import succeeded: **Window** → **Package Manager** → search for `Cesium for Unity` — it should show **v1.13.0** installed
+2. Verify the top menu now has a **Cesium** entry
+3. If the package failed to resolve, check the **Console** for errors. The most common issue is a conflict with Meta XR Simulator Synthetic Environment Builder (`com.meta.xr.simulator.synthenvbuilder`). If so, remove that package from `Packages/manifest.json` and re-open the project
+
+#### 4e. Set Up Cesium ion Account
+
+1. Top menu → **Cesium** → **Cesium** (opens the Cesium panel)
+2. Click **Connect to Cesium ion** — a browser window opens
+3. Sign in or create a free Cesium ion account
+4. Authorize the Unity plugin when prompted
+5. Back in Unity, the Cesium panel should now show **Connected**
+6. Click **Token** at the top of the Cesium panel → create a new token or paste an existing access token
+
+#### 4f. Add Cesium 3D Tilesets (GT Campus)
+
+1. In the Cesium panel, click **Quick Add** → **Cesium World Terrain + Bing Maps Aerial imagery** → a `Cesium World Terrain` GameObject appears in the Hierarchy
+2. Click **Quick Add** → **Cesium OSM Buildings** → adds a 3D building tileset
+3. Select the **CesiumGeoreference** GameObject in the Hierarchy (auto-created by Cesium) → in Inspector, set:
+   - **Latitude** → `33.7756`
+   - **Longitude** → `-84.3963`
+   - **Height** → `0`
+4. This centers the 3D world on Georgia Tech campus
+
+#### 4g. Add Fly Camera
+
+The Cesium DynamicCamera is designed for globe-scale navigation and doesn't work well at ground level. Use a simple fly camera instead.
+
+1. In the Hierarchy, right-click empty space → **Create Empty** → rename to `FlyCamera`
+2. **Drag** `FlyCamera` onto the **CesiumGeoreference** GameObject to make it a child (this keeps it positioned correctly on the globe)
+3. With `FlyCamera` selected → **Add Component** → search `Camera` → add it
+4. **Add Component** → search `FlyCameraController` → add it
+5. **Add Component** → search `CesiumGlobeAnchor` → add it
+6. In the **CesiumGlobeAnchor** component, set:
+   - **Longitude** → `-84.3963`
+   - **Latitude** → `33.7756`
+   - **Height** → `250` (meters — gives an aerial view of campus)
+7. If a `DynamicCamera` exists in the Hierarchy from a previous step, **delete** it
+8. Delete the default **Main Camera** if still present
+9. Press **Play** to verify: you should see 3D terrain + buildings at GT campus
+   - **Right-click + WASD** to fly, **Q/E** for down/up, **Shift** for speed boost
+
+#### 4h. Create the AR Scene
 
 1. **File** → **New Scene** → select **Basic (Built-in)** → **Create**
 2. **File** → **Save As** → navigate to `Assets/IRIS/Scenes/` → name it `MainAR` → **Save**
 3. In the **Hierarchy** panel (left side), right-click on **Main Camera** → **Delete**
 
-#### 4e. Add OVRCameraRig
+#### 4i. Add OVRCameraRig
 
 1. In the **Project** panel (bottom), use the search bar to search for `OVRCameraRig`
 2. Find the **OVRCameraRig** prefab (blue cube icon) — it's from the Oculus package
@@ -108,14 +153,14 @@ If the Unity project has already been set up (the scene `Assets/IRIS/Scenes/Main
      - Anchor Support → **Enabled**
      - Shared Spatial Anchor Support → **Enabled**
 
-#### 4f. Add Passthrough Layer
+#### 4j. Add Passthrough Layer
 
 1. Select **OVRCameraRig** in the Hierarchy
 2. In the Inspector, scroll to the bottom → click **Add Component**
 3. Search for `OVRPassthroughLayer` → click to add
 4. On the new component, set **Placement** → **Underlay**
 
-#### 4g. Configure the Camera for Passthrough
+#### 4k. Configure the Camera for Passthrough
 
 1. In the Hierarchy, expand **OVRCameraRig** → expand **TrackingSpace**
 2. Click on **CenterEyeAnchor**
@@ -123,34 +168,40 @@ If the Unity project has already been set up (the scene `Assets/IRIS/Scenes/Main
    - **Clear Flags** → change to **Solid Color**
    - Click the **Background** color swatch → set the **A** (alpha) slider to **0** → close the color picker
 
-#### 4h. Create the AnchorPrefab
+#### 4l. Create the AnchorPrefab
 
 1. In the Hierarchy, right-click empty space → **Create Empty**
 2. Rename it to `AnchorPrefab` (click the name field in the Inspector)
 3. With it selected → **Add Component** → search `OVRSpatialAnchor` → add it
-4. Right-click `AnchorPrefab` in the Hierarchy → **3D Object** → **Cube**
-5. Select the **Cube** child → in Inspector, set **Transform > Scale** to `0.1, 0.1, 0.1`
-6. Select **AnchorPrefab** (the parent) → **Add Component** → search `AnchorVisualizer` → add it
-7. In the **Project** panel, navigate to `Assets > IRIS > Prefabs`
-8. **Drag** `AnchorPrefab` from the **Hierarchy** into the `Prefabs` folder in the Project panel — it turns blue in the Hierarchy (it's now a prefab)
-9. Right-click `AnchorPrefab` in the Hierarchy → **Delete**
+4. **Add Component** → search `CesiumGlobeAnchor` → add it (this is what positions markers on the 3D globe)
+5. Right-click `AnchorPrefab` in the Hierarchy → **3D Object** → **Cube**
+6. Select the **Cube** child → in Inspector, set **Transform > Scale** to `0.1, 0.1, 0.1`
+7. Select **AnchorPrefab** (the parent) → **Add Component** → search `AnchorVisualizer` → add it
+8. In the **Project** panel, navigate to `Assets > IRIS > Prefabs`
+9. **Drag** `AnchorPrefab` from the **Hierarchy** into the `Prefabs` folder in the Project panel — it turns blue in the Hierarchy (it's now a prefab)
+10. Right-click `AnchorPrefab` in the Hierarchy → **Delete**
 
-#### 4i. Create IRISManager
+#### 4m. Create IRISManager
 
 1. In the Hierarchy, right-click empty space → **Create Empty**
 2. Rename it to `IRISManager`
 3. **Add Component** → search `IRISManager` → add it
 4. **Add Component** → search `AnchorManager` → add it
 5. **Add Component** → search `C2Client` → add it
-6. In the Inspector, find the **Anchor Manager** component:
-   - **Anchor Prefab** field shows "None (Game Object)" — in the Project panel, navigate to `Assets > IRIS > Prefabs` and **drag** `AnchorPrefab` into this field
-   - **C2 Client** field shows "None" — **drag** the `IRISManager` GameObject from the Hierarchy into this field (Unity resolves to the C2Client component on it)
-7. In the Inspector, find the **C2 Client** component:
+6. **Add Component** → search `DesktopInputManager` → add it
+7. In the Inspector, find the **Anchor Manager** component:
+   - **Anchor Prefab** field → drag `AnchorPrefab` from `Assets > IRIS > Prefabs`
+   - **C2 Client** field → drag the `IRISManager` GameObject from the Hierarchy
+   - **Georeference** field → drag the `CesiumGeoreference` GameObject from the Hierarchy
+   - **Marker Altitude** → `2` (meters above terrain)
+8. In the Inspector, find the **Desktop Input Manager** component:
+   - **Anchor Manager** field → drag the `IRISManager` GameObject from the Hierarchy (resolves to AnchorManager)
+9. In the Inspector, find the **C2 Client** component:
    - **Server Url** → `http://localhost:3000`
    - **Device Name** → `Quest3`
    - **Heartbeat Interval** → `10`
 
-#### 4j. Save the Scene
+#### 4n. Save the Scene
 
 1. Press **Ctrl+S** to save
 

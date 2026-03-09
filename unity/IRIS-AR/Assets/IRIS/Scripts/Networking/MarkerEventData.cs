@@ -5,6 +5,8 @@ namespace IRIS.Networking
     [Serializable]
     public class MarkerCreatePayload
     {
+        public double lat { get; set; }
+        public double lng { get; set; }
         public string label { get; set; }
         public string type { get; set; }
     }

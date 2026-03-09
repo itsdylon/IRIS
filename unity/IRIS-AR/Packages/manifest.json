@@ -1,5 +1,13 @@
 {
+  "scopedRegistries": [
+    {
+      "name": "Cesium",
+      "url": "https://unity.pkg.cesium.com",
+      "scopes": ["com.cesium.unity"]
+    }
+  ],
   "dependencies": {
+    "com.cesium.unity": "1.13.0",
     "com.itisnajim.socketiounity": "https://github.com/itisnajim/SocketIOUnity.git",
     "com.meta.xr.sdk.all": "85.0.0",
     "com.meta.xr.simulator.synthenvbuilder": "60.0.1",
