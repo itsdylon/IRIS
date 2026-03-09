@@ -1,10 +1,23 @@
-# M3 Workstream 1: Cesium 3D Scene + Marker Pipeline
+# M3 Workstream 1: Cesium 3D Scene + Marker Pipeline — CLOSED
 
 **Milestone 3 — March 6–20, 2026**
 **Priority:** CRITICAL PATH — everything else depends on this
 **Dependencies:** None — starts Day 1
 **Estimated effort:** 3–4 days
+**Status:** CLOSED — Completed March 9, 2026
+**Commit:** `330ba7b` on `main`
 **Component:** Unity (`unity/IRIS-AR/`)
+
+## Implementation Notes
+
+- Used `CesiumGlobeAnchor.longitudeLatitudeHeight` (not `SetPositionLongitudeLatitudeHeight` from plan)
+- Unity→ECEF→LLH conversion is two-step: `TransformUnityPositionToEarthCenteredEarthFixed` then `CesiumWgs84Ellipsoid.EarthCenteredEarthFixedToLongitudeLatitudeHeight`
+- Replaced DynamicCamera with custom `FlyCameraController` — DynamicCamera is globe-scale, unusable at ground level
+- FlyCamera requires `CesiumGlobeAnchor` + `CesiumOriginShift` + MainCamera tag, parented under CesiumGeoreference
+- Removed `OVRSpatialAnchor` from AnchorPrefab — its Start() crash kills Cesium tile loading
+- Removed `CesiumGlobeAnchor` from AnchorPrefab — added at runtime via `AddComponent` instead (avoids editor warning)
+- AnchorManager auto-finds CesiumGeoreference via `FindObjectOfType` if Inspector field not wired
+- Marker altitude is hardcoded at 2m — see M3 WS1.5 for terrain height sampling
 
 ---
 
