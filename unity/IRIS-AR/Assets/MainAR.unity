@@ -437,7 +437,8 @@ GameObject:
   - component: {fileID: 446904896}
   - component: {fileID: 446904899}
   - component: {fileID: 446904898}
-  - component: {fileID: 446904897}
+  - component: {fileID: 446904901}
+  - component: {fileID: 446904900}
   m_Layer: 0
   m_Name: FlyCamera
   m_TagString: MainCamera
@@ -453,8 +454,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 446904894}
   serializedVersion: 2
-  m_LocalRotation: {x: 7.954022e-10, y: -7.822564e-15, z: 3.314371e-11, w: 1}
-  m_LocalPosition: {x: 65.4579, y: 1.9994018, z: -57.001904}
+  m_LocalRotation: {x: -0.00000006700198, y: -7.747672e-15, z: 3.3143745e-11, w: 1}
+  m_LocalPosition: {x: -5.820768e-11, y: -5, z: 0.0000006216578}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -475,42 +476,6 @@ MonoBehaviour:
   moveSpeed: 20
   fastMultiplier: 3
   lookSpeed: 2
---- !u!114 &446904897
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 446904894}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 74f14e1eb550b9a4fb6c0a2f0456845b, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  _adjustOrientationForGlobeWhenMoving: 1
-  _detectTransformChanges: 1
-  _localToGlobeFixedMatrix:
-    c0:
-      x: 0.9952210962833508
-      y: 0.097647168482069
-      z: 0.000000000036864956260859905
-      w: 0
-    c1:
-      x: 0.08116639928776213
-      y: -0.8272489019061211
-      z: 0.555941786450503
-      w: 0
-    c2:
-      x: -0.054286141318251185
-      y: 0.5532849941780018
-      z: 0.8312212281205428
-      w: 0
-    c3:
-      x: 518315.9512825359
-      y: -5282011.952634101
-      z: 3525879.6721215704
-      w: 1
-  _localToGlobeFixedMatrixIsValid: 1
 --- !u!114 &446904898
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -565,7 +530,7 @@ Camera:
   m_Enabled: 1
   serializedVersion: 2
   m_ClearFlags: 1
-  m_BackGroundColor: {r: 0.19215687, g: 0.3019608, b: 0.4745098, a: 0}
+  m_BackGroundColor: {r: 0, g: 0, b: 0, a: 1}
   m_projectionMatrixMode: 1
   m_GateFitMode: 2
   m_FOVAxisMode: 0
@@ -606,6 +571,55 @@ Camera:
   m_OcclusionCulling: 1
   m_StereoConvergence: 10
   m_StereoSeparation: 0.022
+--- !u!114 &446904900
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 446904894}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3bef32f31a547984f88be1ab98b65f04, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _distance: 0
+--- !u!114 &446904901
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 446904894}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 74f14e1eb550b9a4fb6c0a2f0456845b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  _adjustOrientationForGlobeWhenMoving: 1
+  _detectTransformChanges: 1
+  _localToGlobeFixedMatrix:
+    c0:
+      x: 0.9952210962833508
+      y: 0.09764716848206886
+      z: 0.00000000003686486299690625
+      w: 0
+    c1:
+      x: 0.08116640664867755
+      y: -0.8272489769286588
+      z: 0.5559416737412558
+      w: 0
+    c2:
+      x: -0.05428613031251218
+      y: 0.5532848820073812
+      z: 0.8312213035033278
+      w: 0
+    c3:
+      x: 518247.1436688816
+      y: -5281981.015867192
+      z: 3525923.1620544624
+      w: 1
+  _localToGlobeFixedMatrixIsValid: 1
 --- !u!4 &486347334 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 2222456430839930052, guid: 0472f6598cd3b20478b765fed5b5b476,
@@ -1163,6 +1177,7 @@ GameObject:
   - component: {fileID: 1429241115}
   - component: {fileID: 1429241114}
   - component: {fileID: 1429241113}
+  - component: {fileID: 1429241116}
   m_Layer: 0
   m_Name: IRISManager
   m_TagString: Untagged
@@ -1233,6 +1248,19 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   anchorManager: {fileID: 0}
   c2Client: {fileID: 1429241113}
+--- !u!114 &1429241116
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1429241109}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3b361f7c7f7e13049a8aff9438ec9fb4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  anchorManager: {fileID: 1429241114}
 --- !u!1 &1811392742 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 100004, guid: 126d619cf4daa52469682f85c1378b4a,

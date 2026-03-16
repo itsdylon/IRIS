@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Text.Json;
 using UnityEngine;
 using SocketIOClient;
@@ -22,6 +23,13 @@ namespace IRIS.Networking
         public event Action<string> OnMarkerDeleted;
         public event Action OnConnectedEvent;
         public event Action OnDisconnectedEvent;
+
+        public event Action<AnchorSharedPayload> OnAnchorShared;
+        public event Action<List<AnchorSharedPayload>> OnAnchorLoadResponse;
+        public event Action<string> OnAnchorErased;
+        public event Action<SessionCreatedPayload> OnSessionCreated;
+        public event Action<SessionJoinedPayload> OnSessionJoined;
+        public event Action<SessionStatePayload> OnSessionState;
 
         private SocketIOUnity _socket;
         private string _deviceId;
@@ -102,6 +110,100 @@ namespace IRIS.Networking
                         OnMarkerCreated?.Invoke(marker);
                     }
                 }
+            });
+
+            _socket.On("anchor:shared", (response) =>
+            {
+                var data = response.GetValue<JsonElement>();
+                var payload = new AnchorSharedPayload
+                {
+                    anchorId = data.GetProperty("anchorId").GetString(),
+                    groupUuid = data.GetProperty("groupUuid").GetString(),
+                    sharedBy = data.TryGetProperty("sharedBy", out var sb) ? sb.GetString() : null,
+                    sharedAt = data.TryGetProperty("sharedAt", out var sa) ? sa.GetString() : null,
+                    calibrationLat = data.TryGetProperty("calibrationLat", out var cl) ? cl.GetDouble() : 0,
+                    calibrationLng = data.TryGetProperty("calibrationLng", out var cln) ? cln.GetDouble() : 0,
+                    calibrationAlt = data.TryGetProperty("calibrationAlt", out var ca) ? ca.GetDouble() : 0,
+                };
+                if (data.TryGetProperty("pose", out var poseEl) && poseEl.ValueKind == JsonValueKind.Object)
+                {
+                    payload.pose = ParsePose(poseEl);
+                }
+                Debug.Log($"[C2Client] anchor:shared — {payload.anchorId}");
+                OnAnchorShared?.Invoke(payload);
+            });
+
+            _socket.On("anchor:load:response", (response) =>
+            {
+                var data = response.GetValue<JsonElement>();
+                var anchors = new List<AnchorSharedPayload>();
+                if (data.TryGetProperty("anchors", out var arr) && arr.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var item in arr.EnumerateArray())
+                    {
+                        var a = new AnchorSharedPayload
+                        {
+                            anchorId = item.GetProperty("anchorId").GetString(),
+                            groupUuid = item.GetProperty("groupUuid").GetString(),
+                            sharedBy = item.TryGetProperty("sharedBy", out var sb) ? sb.GetString() : null,
+                            sharedAt = item.TryGetProperty("sharedAt", out var sa) ? sa.GetString() : null,
+                            calibrationLat = item.TryGetProperty("calibrationLat", out var cl) ? cl.GetDouble() : 0,
+                            calibrationLng = item.TryGetProperty("calibrationLng", out var cln) ? cln.GetDouble() : 0,
+                            calibrationAlt = item.TryGetProperty("calibrationAlt", out var ca) ? ca.GetDouble() : 0,
+                        };
+                        if (item.TryGetProperty("pose", out var poseEl) && poseEl.ValueKind == JsonValueKind.Object)
+                        {
+                            a.pose = ParsePose(poseEl);
+                        }
+                        anchors.Add(a);
+                    }
+                }
+                Debug.Log($"[C2Client] anchor:load:response — {anchors.Count} anchors");
+                OnAnchorLoadResponse?.Invoke(anchors);
+            });
+
+            _socket.On("anchor:erased", (response) =>
+            {
+                var data = response.GetValue<JsonElement>();
+                var anchorId = data.GetProperty("anchorId").GetString();
+                Debug.Log($"[C2Client] anchor:erased — {anchorId}");
+                OnAnchorErased?.Invoke(anchorId);
+            });
+
+            _socket.On("session:created", (response) =>
+            {
+                var data = response.GetValue<JsonElement>();
+                var payload = new SessionCreatedPayload
+                {
+                    sessionId = data.GetProperty("sessionId").GetString(),
+                    hostDeviceId = data.GetProperty("hostDeviceId").GetString(),
+                };
+                Debug.Log($"[C2Client] session:created — {payload.sessionId}");
+                OnSessionCreated?.Invoke(payload);
+            });
+
+            _socket.On("session:joined", (response) =>
+            {
+                var data = response.GetValue<JsonElement>();
+                var payload = new SessionJoinedPayload
+                {
+                    sessionId = data.GetProperty("sessionId").GetString(),
+                    deviceId = data.GetProperty("deviceId").GetString(),
+                };
+                Debug.Log($"[C2Client] session:joined — {payload.deviceId} → {payload.sessionId}");
+                OnSessionJoined?.Invoke(payload);
+            });
+
+            _socket.On("session:state", (response) =>
+            {
+                var data = response.GetValue<JsonElement>();
+                var payload = new SessionStatePayload
+                {
+                    sessionId = data.GetProperty("sessionId").GetString(),
+                    hostDeviceId = data.GetProperty("hostDeviceId").GetString(),
+                };
+                Debug.Log($"[C2Client] session:state — {payload.sessionId}");
+                OnSessionState?.Invoke(payload);
             });
         }
 
@@ -214,6 +316,74 @@ namespace IRIS.Networking
             }
 
             return marker;
+        }
+
+        public void EmitSessionCreate()
+        {
+            if (!IsConnected) return;
+            _socket.Emit("session:create", new SessionCreatePayload());
+            Debug.Log("[C2Client] session:create");
+        }
+
+        public void EmitSessionJoin(string sessionId)
+        {
+            if (!IsConnected) return;
+            _socket.Emit("session:join", new SessionJoinPayload { sessionId = sessionId });
+            Debug.Log($"[C2Client] session:join — {sessionId}");
+        }
+
+        public void EmitAnchorShare(string sessionId, string anchorId, string groupUuid, UnityEngine.Pose pose, double lat, double lng, double alt)
+        {
+            if (!IsConnected) return;
+            var payload = new AnchorSharePayload
+            {
+                sessionId = sessionId,
+                anchorId = anchorId,
+                groupUuid = groupUuid,
+                pose = new PosePayload
+                {
+                    px = pose.position.x,
+                    py = pose.position.y,
+                    pz = pose.position.z,
+                    rx = pose.rotation.x,
+                    ry = pose.rotation.y,
+                    rz = pose.rotation.z,
+                    rw = pose.rotation.w,
+                },
+                calibrationLat = lat,
+                calibrationLng = lng,
+                calibrationAlt = alt,
+            };
+            _socket.Emit("anchor:share", payload);
+            Debug.Log($"[C2Client] anchor:share — {anchorId} in group {groupUuid}");
+        }
+
+        public void EmitAnchorLoad(string groupUuid)
+        {
+            if (!IsConnected) return;
+            _socket.Emit("anchor:load", new AnchorLoadPayload { groupUuid = groupUuid });
+            Debug.Log($"[C2Client] anchor:load — {groupUuid}");
+        }
+
+        public void EmitAnchorErase(string anchorId)
+        {
+            if (!IsConnected) return;
+            _socket.Emit("anchor:erase", new AnchorErasePayload { anchorId = anchorId });
+            Debug.Log($"[C2Client] anchor:erase — {anchorId}");
+        }
+
+        private PosePayload ParsePose(JsonElement el)
+        {
+            return new PosePayload
+            {
+                px = el.TryGetProperty("px", out var px) ? (float)px.GetDouble() : 0f,
+                py = el.TryGetProperty("py", out var py) ? (float)py.GetDouble() : 0f,
+                pz = el.TryGetProperty("pz", out var pz) ? (float)pz.GetDouble() : 0f,
+                rx = el.TryGetProperty("rx", out var rx) ? (float)rx.GetDouble() : 0f,
+                ry = el.TryGetProperty("ry", out var ry) ? (float)ry.GetDouble() : 0f,
+                rz = el.TryGetProperty("rz", out var rz) ? (float)rz.GetDouble() : 0f,
+                rw = el.TryGetProperty("rw", out var rw) ? (float)rw.GetDouble() : 1f,
+            };
         }
 
         private void OnDestroy()

@@ -6,6 +6,7 @@ namespace IRIS.Core
     public class DesktopInputManager : MonoBehaviour
     {
         [SerializeField] private AnchorManager anchorManager;
+        [SerializeField] private CalibrationManager calibrationManager;
 
         private void Update()
         {
@@ -14,7 +15,10 @@ namespace IRIS.Core
                 anchorManager.PlaceMarkerAtCamera();
             }
 
-            // C key reserved for WS2 CalibrationManager
+            if (Input.GetKeyDown(KeyCode.C))
+            {
+                calibrationManager.Calibrate();
+            }
         }
     }
 }
