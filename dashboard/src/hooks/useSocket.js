@@ -55,3 +55,52 @@ export function useDevices() {
 
   return { devices }
 }
+
+export function useSession() {
+  const [session, setSession] = useState({
+    sessionId: null,
+    hostDeviceId: null,
+    devices: [],
+    isCalibrated: false,
+  })
+
+  useEffect(() => {
+    socket.on('session:created', (data) => {
+      setSession((prev) => ({
+        ...prev,
+        sessionId: data.sessionId,
+        hostDeviceId: data.hostDeviceId,
+      }))
+    })
+
+    socket.on('session:joined', (data) => {
+      setSession((prev) => ({
+        ...prev,
+        devices: [...prev.devices, data.deviceId],
+      }))
+    })
+
+    socket.on('session:state', (data) => {
+      setSession((prev) => ({
+        ...prev,
+        sessionId: data.sessionId,
+        hostDeviceId: data.hostDeviceId,
+        devices: data.devices || [],
+        isCalibrated: data.calibration != null,
+      }))
+    })
+
+    socket.on('anchor:shared', () => {
+      setSession((prev) => ({ ...prev, isCalibrated: true }))
+    })
+
+    return () => {
+      socket.off('session:created')
+      socket.off('session:joined')
+      socket.off('session:state')
+      socket.off('anchor:shared')
+    }
+  }, [])
+
+  return { session }
+}

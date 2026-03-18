@@ -23,6 +23,7 @@ namespace IRIS.Networking
         public event Action<string> OnMarkerDeleted;
         public event Action OnConnectedEvent;
         public event Action OnDisconnectedEvent;
+        public event Action<string> OnDeviceRegistered;
 
         public event Action<AnchorSharedPayload> OnAnchorShared;
         public event Action<List<AnchorSharedPayload>> OnAnchorLoadResponse;
@@ -65,6 +66,7 @@ namespace IRIS.Networking
                 var data = response.GetValue<JsonElement>();
                 _deviceId = data.GetProperty("id").GetString();
                 Debug.Log($"[C2Client] Registered as device: {_deviceId}");
+                OnDeviceRegistered?.Invoke(_deviceId);
             });
 
             _socket.On("marker:created", (response) =>

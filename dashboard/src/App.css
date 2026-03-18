@@ -151,3 +151,42 @@
   color: #8899aa;
   font-size: 0.7rem;
 }
+
+/* Header Status */
+.header-status {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+/* Session Status */
+.session-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.session-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.session-id {
+  font-family: monospace;
+  font-size: 0.8rem;
+}
+
+.session-detail {
+  font-size: 0.7rem;
+  color: #8899aa;
+}
+
+.status-dot.calibrated {
+  background: #44ff44;
+}
+
+.status-dot.awaiting {
+  background: #ffaa00;
+}

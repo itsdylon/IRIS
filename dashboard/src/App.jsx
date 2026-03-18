@@ -1,18 +1,23 @@
 import MapView from './components/MapView'
 import MarkerPanel from './components/MarkerPanel'
 import DeviceStatus from './components/DeviceStatus'
-import { useMarkers, useDevices } from './hooks/useSocket'
+import SessionStatus from './components/SessionStatus'
+import { useMarkers, useDevices, useSession } from './hooks/useSocket'
 import './App.css'
 
 function App() {
   const { markers, createMarker, deleteMarker } = useMarkers()
   const { devices } = useDevices()
+  const { session } = useSession()
 
   return (
     <div className="app">
       <header className="app-header">
         <h1>IRIS Command Dashboard</h1>
-        <DeviceStatus devices={devices} />
+        <div className="header-status">
+          <SessionStatus session={session} />
+          <DeviceStatus devices={devices} />
+        </div>
       </header>
       <div className="app-body">
         <aside className="sidebar">

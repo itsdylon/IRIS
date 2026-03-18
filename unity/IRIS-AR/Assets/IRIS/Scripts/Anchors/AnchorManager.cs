@@ -77,6 +77,11 @@ namespace IRIS.Anchors
                 SetAnchorType(anchor, marker.type);
                 _activeAnchors[marker.id] = anchor;
                 Debug.Log($"[AnchorManager] Spawned geo marker '{marker.label}' at lat/lng ({marker.lat:F6}, {marker.lng:F6})");
+
+                if (c2Client != null && marker.status != "placed")
+                {
+                    c2Client.EmitMarkerPlace(marker.id, anchor.transform.position);
+                }
             }
             else
             {

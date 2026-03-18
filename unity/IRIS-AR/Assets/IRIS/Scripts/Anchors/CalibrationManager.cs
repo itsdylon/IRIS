@@ -26,6 +26,16 @@ namespace IRIS.Anchors
             if (c2Client != null)
             {
                 c2Client.OnSessionCreated += OnSessionCreated;
+                c2Client.OnDeviceRegistered += OnDeviceRegistered;
+            }
+        }
+
+        private void OnDeviceRegistered(string deviceId)
+        {
+            if (string.IsNullOrEmpty(_currentSessionId))
+            {
+                c2Client.EmitSessionCreate();
+                Debug.Log("[CalibrationManager] Auto-creating session after device registered");
             }
         }
 
@@ -130,6 +140,7 @@ namespace IRIS.Anchors
             if (c2Client != null)
             {
                 c2Client.OnSessionCreated -= OnSessionCreated;
+                c2Client.OnDeviceRegistered -= OnDeviceRegistered;
             }
         }
     }

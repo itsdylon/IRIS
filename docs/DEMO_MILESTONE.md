@@ -30,6 +30,22 @@ D6 Marker count ───┘
 
 All tasks are independent and can be done in any order/parallel. D1 + D2 are highest visual impact. D3 is critical for smooth demo flow. D4/D5 prevent demo failures. D6 is nice-to-have.
 
+### Status
+
+| Task | Status | Notes |
+|------|--------|-------|
+| D1 SessionStatus | DONE | SessionStatus component, useSession hook, App wiring, CSS |
+| D2 HUD | NOT STARTED | |
+| D3 Auto-session | DONE | OnDeviceRegistered event + auto-create session after registration |
+| D4 Error handling | NOT STARTED | |
+| D5 Reconnect | NOT STARTED | |
+| D6 Marker count | NOT STARTED | |
+
+### Additional fixes applied
+
+- **Marker placement status**: AnchorManager now calls `EmitMarkerPlace()` after spawning a geo-positioned marker, so the dashboard shows "placed" instead of "Pending placement"
+- **C2Client OnDeviceRegistered event**: New event fires after server confirms device registration, used by D3 to guarantee device is registered before creating a session
+
 ---
 
 ## D1. Dashboard SessionStatus Component
