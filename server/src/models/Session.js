@@ -3,7 +3,11 @@ const sessions = new Map()
 
 export const SessionStore = {
     create(hostDeviceId) {
-        const session = { id: uuid(), hostDeviceId, devices: [hostDeviceId], calibration: null, anchors: [], createdAt: new Date().toISOString()}
+        const session = { id: uuid(), 
+            hostDeviceId, 
+            devices: [hostDeviceId], 
+            calibration: null, anchors: [], 
+            createdAt: new Date().toISOString()}
         sessions.set(session.id, session)
         return session
     },
