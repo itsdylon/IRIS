@@ -3,7 +3,21 @@ import { v4 as uuidv4 } from 'uuid'
 const devices = new Map()
 
 export const DeviceStore = {
+  findByNameAndType(name, type) {
+    for (const device of devices.values()) {
+      if (device.name === name && device.type === type) return device
+    }
+    return null
+  },
+
   register({ name, type = 'unknown', socketId }) {
+    const existing = this.findByNameAndType(name, type)
+    if (existing) {
+      existing.socketId = socketId
+      existing.status = 'online'
+      existing.lastSeen = new Date().toISOString()
+      return existing
+    }
     const device = {
       id: uuidv4(),
       name,
@@ -27,7 +41,7 @@ export const DeviceStore = {
   disconnect(socketId) {
     for (const [id, device] of devices) {
       if (device.socketId === socketId) {
-        device.status = 'offline'
+        devices.delete(id)
         return device
       }
     }

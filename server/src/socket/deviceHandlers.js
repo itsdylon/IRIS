@@ -4,7 +4,7 @@ export function registerDeviceHandlers(io, socket) {
   socket.on('device:register', ({ name, type }) => {
     const device = DeviceStore.register({ name, type, socketId: socket.id })
     socket.deviceId = device.id
-    console.log(`[device:register] ${device.name} (${device.type})`)
+    console.log(`[device:register] ${device.name} (${device.type}) id=${device.id}`)
     socket.emit('device:registered', device)
     io.emit('device:list', DeviceStore.list())
   })
