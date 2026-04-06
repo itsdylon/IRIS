@@ -5,6 +5,7 @@ import cors from 'cors'
 import { config } from './config.js'
 import { registerSocketHandlers } from './socket/index.js'
 import { MarkerStore } from './models/Marker.js'
+import { SessionStore } from './models/Session.js'
 
 const app = express()
 const httpServer = createServer(app)
@@ -42,6 +43,10 @@ app.delete('/api/markers/:id', (req, res) => {
   if (!deleted) return res.status(404).json({error : 'Not found'})
   io.emit('marker:deleted', {id:req.params.id})
   res.json({ok:true})
+})
+
+app.get('/api/session', (req, res) => {
+  res.json(SessionStore.list())
 })
 
 registerSocketHandlers(io)
