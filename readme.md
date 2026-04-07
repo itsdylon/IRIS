@@ -194,9 +194,13 @@ The Cesium DynamicCamera is designed for globe-scale navigation and doesn't work
    - **C2 Client** field → drag the `IRISManager` GameObject from the Hierarchy
    - **Georeference** field → drag the `CesiumGeoreference` GameObject from the Hierarchy
    - **Marker Altitude** → `2` (meters above terrain)
-8. In the Inspector, find the **Desktop Input Manager** component:
+8. In the Inspector, find the **IRIS Manager** component:
+   - **Auto Lift Rig Above Terrain On Start** → enabled
+   - **Eye Height Above Ground** → `1.6` (adjust to comfort if needed)
+   - **Raycast Start Height** → `200`
+9. In the Inspector, find the **Desktop Input Manager** component:
    - **Anchor Manager** field → drag the `IRISManager` GameObject from the Hierarchy (resolves to AnchorManager)
-9. In the Inspector, find the **C2 Client** component:
+10. In the Inspector, find the **C2 Client** component:
    - **Server Url** → `http://localhost:3000`
    - **Device Name** → `Quest3`
    - **Heartbeat Interval** → `10`
@@ -208,7 +212,7 @@ The Cesium DynamicCamera is designed for globe-scale navigation and doesn't work
 ### Running the Unity App
 
 1. Open the project in Unity Hub
-2. Open the scene at `Assets/IRIS/Scenes/MainAR`
+2. Open the scene at `Assets/MainAR.unity`
 3. Make sure Meta XR Simulator is enabled: **Oculus** → **Meta XR Simulator** → **Enabled**
 4. Start the C2 server first: `cd server && npm run dev`
 5. Press **Play** (triangle button at the top center)
