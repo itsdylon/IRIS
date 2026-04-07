@@ -87,13 +87,32 @@ Allow the command dashboard to specify an optional height offset when placing ma
 
 ---
 
+## Unity Inspector Steps
+
+After pulling this change, perform the following in Unity:
+
+1. **Add Cesium World Terrain tileset**
+   - Open the **MainAR** scene
+   - In the Cesium panel, use **Quick Add → Cesium World Terrain + Bing Maps Aerial imagery**
+   - This creates a `Cesium3DTileset` as a child of the existing `CesiumGeoreference`
+   - For Quest 3 performance: select the new tileset, set `Maximum Screen Space Error` to **64** (coarser tiles, ~5m accuracy is fine for markers)
+
+2. **Add TerrainHeightSampler component**
+   - Select the **AnchorManager** GameObject
+   - Click **Add Component → TerrainHeightSampler** (namespace `IRIS.Geo`)
+   - Drag the terrain `Cesium3DTileset` into the `Terrain Tileset` field (or leave empty for auto-discovery)
+   - Under **Camera Ground Placement**: drag the camera's `CesiumGlobeAnchor` into the `Camera Globe Anchor` field
+   - Set `Camera Eye Height` to **1.7** (meters above terrain for standing eye level)
+
+3. **Wire TerrainHeightSampler on AnchorManager**
+   - On the **AnchorManager** component, drag the `TerrainHeightSampler` component into the `Terrain Height Sampler` field
+   - Set `Marker Height Offset` to **2.0** (meters above terrain surface)
+
+---
+
 ## Files Modified / Created
 
 | File | Action |
 |---|---|
-| `Assets/IRIS/Scripts/Anchors/AnchorManager.cs` | Edit — add terrain height query |
-| `Assets/IRIS/Scripts/Markers/MarkerData.cs` | Edit — add heightOffset field |
-| `server/src/socket/markerHandlers.js` | Edit — pass through heightOffset |
-| `server/src/models/Marker.js` | Edit — add heightOffset field |
-| `server/src/db.js` | Edit — add height_offset column |
-| `dashboard/src/components/MapView.jsx` | Edit — add height offset input |
+| `Assets/IRIS/Scripts/Geo/TerrainHeightSampler.cs` | **New** — wraps `Cesium3DTileset.SampleHeightMostDetailed` |
+| `Assets/IRIS/Scripts/Anchors/AnchorManager.cs` | Edit — async terrain height sampling, rename `markerAltitude` → `markerHeightOffset` |

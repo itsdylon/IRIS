@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using CesiumForUnity;
 using Unity.Mathematics;
+using IRIS.Geo;
 using IRIS.Markers;
 using IRIS.Networking;
 
@@ -13,7 +14,8 @@ namespace IRIS.Anchors
         [SerializeField] private GameObject anchorPrefab;
         [SerializeField] private C2Client c2Client;
         [SerializeField] private CesiumGeoreference georeference;
-        [SerializeField] private float markerAltitude = 2f;
+        [SerializeField] private TerrainHeightSampler terrainHeightSampler;
+        [SerializeField] private float markerHeightOffset = 2f;
         [SerializeField] private bool spawnTestMarkerOnStart = false;
 
         private readonly Dictionary<string, GameObject> _activeAnchors = new Dictionary<string, GameObject>();
@@ -62,21 +64,35 @@ namespace IRIS.Anchors
             }
         }
 
-        private void HandleMarkerCreated(MarkerData marker)
+        private async void HandleMarkerCreated(MarkerData marker)
         {
             if (_activeAnchors.ContainsKey(marker.id)) return;
 
             if (marker.lat != 0 && marker.lng != 0)
             {
                 var anchor = SpawnAnchor(Vector3.zero, marker);
+                _activeAnchors[marker.id] = anchor;
+
+                double height;
+                if (terrainHeightSampler != null && terrainHeightSampler.IsAvailable)
+                    height = await terrainHeightSampler.SampleHeightAsync(marker.lng, marker.lat, markerHeightOffset);
+                else
+                    height = markerHeightOffset;
+
+                if (anchor == null)
+                {
+                    Debug.LogWarning($"[AnchorManager] Marker '{marker.id}' destroyed during height sampling — skipping");
+                    _activeAnchors.Remove(marker.id);
+                    return;
+                }
+
                 var globeAnchor = anchor.GetComponent<CesiumGlobeAnchor>();
                 if (globeAnchor == null)
                     globeAnchor = anchor.AddComponent<CesiumGlobeAnchor>();
-                globeAnchor.longitudeLatitudeHeight = new double3(marker.lng, marker.lat, markerAltitude);
+                globeAnchor.longitudeLatitudeHeight = new double3(marker.lng, marker.lat, height);
 
                 SetAnchorType(anchor, marker.type);
-                _activeAnchors[marker.id] = anchor;
-                Debug.Log($"[AnchorManager] Spawned geo marker '{marker.label}' at lat/lng ({marker.lat:F6}, {marker.lng:F6})");
+                Debug.Log($"[AnchorManager] Spawned geo marker '{marker.label}' at lat/lng ({marker.lat:F6}, {marker.lng:F6}), height {height:F1}m");
 
                 if (c2Client != null && marker.status != "placed")
                 {
@@ -135,15 +151,28 @@ namespace IRIS.Anchors
             visualizer.SetType(type);
         }
 
-        public void SpawnTestMarker()
+        public async void SpawnTestMarker()
         {
             var data = new MarkerData("test-001", "Test Marker", "hardcoded");
             var anchor = SpawnAnchor(Vector3.zero, data);
+
+            double height;
+            if (terrainHeightSampler != null && terrainHeightSampler.IsAvailable)
+                height = await terrainHeightSampler.SampleHeightAsync(-84.3963, 33.7756, markerHeightOffset);
+            else
+                height = markerHeightOffset;
+
+            if (anchor == null)
+            {
+                Debug.LogWarning("[AnchorManager] Test marker destroyed during height sampling — skipping");
+                return;
+            }
+
             var globeAnchor = anchor.GetComponent<CesiumGlobeAnchor>();
             if (globeAnchor == null)
                 globeAnchor = anchor.AddComponent<CesiumGlobeAnchor>();
-            globeAnchor.longitudeLatitudeHeight = new double3(-84.3963, 33.7756, markerAltitude);
-            Debug.Log("[AnchorManager] Spawned test marker at GT campus origin");
+            globeAnchor.longitudeLatitudeHeight = new double3(-84.3963, 33.7756, height);
+            Debug.Log($"[AnchorManager] Spawned test marker at GT campus origin, height {height:F1}m");
         }
 
         public GameObject SpawnAnchor(Vector3 position, MarkerData data)
