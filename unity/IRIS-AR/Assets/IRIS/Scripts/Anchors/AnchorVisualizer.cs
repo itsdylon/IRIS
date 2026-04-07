@@ -27,6 +27,10 @@ namespace IRIS.Anchors
         {
             _renderer = GetComponentInChildren<Renderer>();
             _labelText = GetComponentInChildren<TextMeshPro>();
+            if (_renderer != null && _renderer.sharedMaterial != null)
+            {
+                _renderer.material = new Material(_renderer.sharedMaterial);
+            }
         }
 
         public void SetColor(Color color)

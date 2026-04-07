@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 using CesiumForUnity;
 using Unity.Mathematics;
 using IRIS.Geo;
@@ -15,7 +16,10 @@ namespace IRIS.Anchors
         [SerializeField] private C2Client c2Client;
         [SerializeField] private CesiumGeoreference georeference;
         [SerializeField] private TerrainHeightSampler terrainHeightSampler;
+        [FormerlySerializedAs("markerAltitude")]
         [SerializeField] private float markerHeightOffset = 2f;
+        /// <summary>WGS84 ellipsoid height (m) when terrain sampling is unavailable — match CesiumGeoreference height (~255 at GT).</summary>
+        [SerializeField] private double ellipsoidHeightFallbackMeters = 255.0;
         [SerializeField] private bool spawnTestMarkerOnStart = false;
 
         private readonly Dictionary<string, GameObject> _activeAnchors = new Dictionary<string, GameObject>();
@@ -25,6 +29,8 @@ namespace IRIS.Anchors
 
         private void Start()
         {
+            ClearSpawnedAnchorsInScene();
+
             if (georeference == null)
             {
                 georeference = FindObjectOfType<CesiumGeoreference>();
@@ -45,6 +51,19 @@ namespace IRIS.Anchors
                 c2Client.OnMarkerUpdated += (m) => _pendingUpdated.Enqueue(m);
                 c2Client.OnMarkerDeleted += (id) => _pendingDeleted.Enqueue(id);
             }
+        }
+
+        private void ClearSpawnedAnchorsInScene()
+        {
+            var stale = FindObjectsOfType<MarkerRenderer>();
+            foreach (var markerRenderer in stale)
+            {
+                if (markerRenderer != null)
+                {
+                    Destroy(markerRenderer.gameObject);
+                }
+            }
+            _activeAnchors.Clear();
         }
 
         private void Update()
@@ -77,7 +96,7 @@ namespace IRIS.Anchors
                 if (terrainHeightSampler != null && terrainHeightSampler.IsAvailable)
                     height = await terrainHeightSampler.SampleHeightAsync(marker.lng, marker.lat, markerHeightOffset);
                 else
-                    height = markerHeightOffset;
+                    height = ellipsoidHeightFallbackMeters + markerHeightOffset;
 
                 if (anchor == null)
                 {
@@ -92,7 +111,9 @@ namespace IRIS.Anchors
                 globeAnchor.longitudeLatitudeHeight = new double3(marker.lng, marker.lat, height);
 
                 SetAnchorType(anchor, marker.type);
-                Debug.Log($"[AnchorManager] Spawned geo marker '{marker.label}' at lat/lng ({marker.lat:F6}, {marker.lng:F6}), height {height:F1}m");
+                var cam = Camera.main;
+                var dist = cam != null ? Vector3.Distance(cam.transform.position, anchor.transform.position) : -1f;
+                Debug.Log($"[AnchorManager] Spawned geo marker '{marker.label}' at lat/lng ({marker.lat:F6}, {marker.lng:F6}), height {height:F1}m — {dist:F0}m from camera");
 
                 if (c2Client != null && marker.status != "placed")
                 {
@@ -101,15 +122,14 @@ namespace IRIS.Anchors
             }
             else
             {
-                var cam = Camera.main;
-                var spawnPos = cam != null
-                    ? cam.transform.position + cam.transform.forward * 2f
-                    : new Vector3(0f, 1.5f, 2f);
+                var basePos = georeference != null
+                    ? georeference.transform.position + Vector3.up * markerHeightOffset
+                    : new Vector3(0f, markerHeightOffset, 0f);
 
-                var anchor = SpawnAnchor(spawnPos, marker);
+                var anchor = SpawnAnchor(basePos, marker);
                 SetAnchorType(anchor, marker.type, isPending: true);
                 _activeAnchors[marker.id] = anchor;
-                Debug.Log($"[AnchorManager] Spawned pending marker '{marker.label}' near camera (no lat/lng)");
+                Debug.Log($"[AnchorManager] Spawned pending marker '{marker.label}' at georeference origin (no lat/lng)");
             }
         }
 
@@ -117,6 +137,34 @@ namespace IRIS.Anchors
         {
             if (!_activeAnchors.TryGetValue(marker.id, out var anchor)) return;
             if (anchor == null) return;
+
+            // Dashboard markers: keep lat/lng + Cesium so beacons stay fixed to the globe, not the camera.
+            if (marker.lat != 0 && marker.lng != 0 && georeference != null)
+            {
+                if (anchor.transform.parent != georeference.transform)
+                    anchor.transform.SetParent(georeference.transform, true);
+
+                var globeAnchor = anchor.GetComponent<CesiumGlobeAnchor>();
+                if (globeAnchor == null)
+                {
+                    globeAnchor = anchor.AddComponent<CesiumGlobeAnchor>();
+                    globeAnchor.longitudeLatitudeHeight = new double3(marker.lng, marker.lat, ellipsoidHeightFallbackMeters + markerHeightOffset);
+                }
+                else
+                {
+                    var h = globeAnchor.longitudeLatitudeHeight.z;
+                    globeAnchor.longitudeLatitudeHeight = new double3(marker.lng, marker.lat, h);
+                }
+            }
+            else if (marker.position != null)
+            {
+                var globeAnchor = anchor.GetComponent<CesiumGlobeAnchor>();
+                if (globeAnchor != null)
+                    Destroy(globeAnchor);
+
+                anchor.transform.position = marker.GetPositionVector();
+                anchor.transform.SetParent(null, true);
+            }
 
             SetAnchorType(anchor, marker.type);
             Debug.Log($"[AnchorManager] Marker '{marker.label}' updated");
@@ -160,7 +208,7 @@ namespace IRIS.Anchors
             if (terrainHeightSampler != null && terrainHeightSampler.IsAvailable)
                 height = await terrainHeightSampler.SampleHeightAsync(-84.3963, 33.7756, markerHeightOffset);
             else
-                height = markerHeightOffset;
+                height = ellipsoidHeightFallbackMeters + markerHeightOffset;
 
             if (anchor == null)
             {

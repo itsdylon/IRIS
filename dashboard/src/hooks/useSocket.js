@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import socket from '../services/socketService'
+import socket, { SERVER_URL } from '../services/socketService'
 
 export function useMarkers() {
   const [markers, setMarkers] = useState([])
@@ -65,6 +65,21 @@ export function useSession() {
   })
 
   useEffect(() => {
+    // Recover current server-side session when dashboard connects late.
+    fetch(`${SERVER_URL}/api/session`)
+      .then((res) => res.json())
+      .then((sessions) => {
+        if (!Array.isArray(sessions) || sessions.length === 0) return
+        const latest = sessions[sessions.length - 1]
+        setSession({
+          sessionId: latest.id ?? null,
+          hostDeviceId: latest.hostDeviceId ?? null,
+          devices: latest.devices ?? [],
+          isCalibrated: latest.calibration != null,
+        })
+      })
+      .catch(() => {})
+
     socket.on('session:created', (data) => {
       setSession((prev) => ({
         ...prev,

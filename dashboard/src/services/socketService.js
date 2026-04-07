@@ -1,6 +1,11 @@
 import { io } from 'socket.io-client'
 
-const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3000'
+const browserHost =
+  typeof window !== 'undefined' && window.location?.hostname
+    ? window.location.hostname
+    : 'localhost'
+
+const SERVER_URL = import.meta.env.VITE_SERVER_URL || `http://${browserHost}:3000`
 
 const socket = io(SERVER_URL, {
   autoConnect: true,
@@ -18,3 +23,4 @@ socket.on('disconnect', () => {
 })
 
 export default socket
+export { SERVER_URL }

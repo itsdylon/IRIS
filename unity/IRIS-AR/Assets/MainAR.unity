@@ -1234,7 +1234,9 @@ MonoBehaviour:
     type: 3}
   c2Client: {fileID: 1429241113}
   georeference: {fileID: 1166677491}
-  markerAltitude: 254
+  terrainHeightSampler: {fileID: 0}
+  markerHeightOffset: 2
+  ellipsoidHeightFallbackMeters: 255
   spawnTestMarkerOnStart: 0
 --- !u!114 &1429241115
 MonoBehaviour:

@@ -193,21 +193,34 @@ The Cesium DynamicCamera is designed for globe-scale navigation and doesn't work
    - **Anchor Prefab** field → drag `AnchorPrefab` from `Assets > IRIS > Prefabs`
    - **C2 Client** field → drag the `IRISManager` GameObject from the Hierarchy
    - **Georeference** field → drag the `CesiumGeoreference` GameObject from the Hierarchy
-   - **Marker Altitude** → `2` (meters above terrain)
+   - **Marker Height Offset** → `2` (meters above terrain / ellipsoid fallback)
+   - **Ellipsoid Height Fallback Meters** → `255` (match **CesiumGeoreference** height when terrain sampling is off)
 8. In the Inspector, find the **IRIS Manager** component:
-   - **Auto Lift Rig Above Terrain On Start** → enabled
-   - **Eye Height Above Ground** → `1.6` (adjust to comfort if needed)
+   - **Auto Lift Rig Above Terrain On Start** → enabled for **Editor / XR Simulator** only if you spawn underground
+   - **Disable Terrain Lift On Android** → enabled on **Quest builds** (avoids fighting Meta floor height and Cesium LOD “creep”)
+   - **Eye Height Above Ground** → `1.6` (only used when terrain lift runs)
    - **Raycast Start Height** → `200`
+   - **Enable Thumbstick Locomotion** → enabled
+   - **Thumbstick Move Speed** → `2`
 9. In the Inspector, find the **Desktop Input Manager** component:
    - **Anchor Manager** field → drag the `IRISManager` GameObject from the Hierarchy (resolves to AnchorManager)
 10. In the Inspector, find the **C2 Client** component:
-   - **Server Url** → `http://localhost:3000`
+   - **Server Url** → `http://localhost:3000` for **Editor / Simulator** on the same Mac
+   - For **Quest on Wi‑Fi**, set **Server Url** to your Mac’s LAN IP, e.g. `http://192.168.x.x:3000` (not `localhost`)
    - **Device Name** → `Quest3`
    - **Heartbeat Interval** → `10`
 
 #### 4n. Save the Scene
 
 1. Press **Ctrl+S** to save
+
+#### 4o. Testing dashboard markers on Quest
+
+1. Put **Quest** and **Mac** on the **same Wi‑Fi**.
+2. On the Mac: `cd server && npm run dev` and `cd dashboard && npm run dev -- --host`.
+3. Note your Mac **LAN IP** (Vite prints **Network:** `http://<ip>:5173/`).
+4. In Unity **C2 Client** on the scene you build: **Server Url** = `http://<ip>:3000` (not `localhost`). Build and run to the headset.
+5. On the **Mac**, open the dashboard at `http://localhost:5173` and place a marker on the map. The **Quest** app should receive it (server log: `Quest3`, `marker:create`). You do **not** need to open the dashboard inside the headset browser unless you want to.
 
 ### Running the Unity App
 

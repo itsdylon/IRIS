@@ -10,7 +10,7 @@ namespace IRIS.Geo
     public class TerrainHeightSampler : MonoBehaviour
     {
         [SerializeField] private Cesium3DTileset terrainTileset;
-        [SerializeField] private double fallbackHeight = 2.0;
+        [SerializeField] private double fallbackHeight = 255.0;
         [SerializeField] private float samplingTimeoutSeconds = 10f;
 
         [Header("Camera Ground Placement")]
