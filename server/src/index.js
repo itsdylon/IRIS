@@ -12,12 +12,12 @@ const httpServer = createServer(app)
 
 const io = new Server(httpServer, {
   cors: {
-    origin: config.dashboardUrl,
+    origin: config.dashboardOrigins,
     methods: ['GET', 'POST'],
   },
 })
 
-app.use(cors({ origin: config.dashboardUrl }))
+app.use(cors({ origin: config.dashboardOrigins }))
 app.use(express.json())
 
 app.get('/health', (req, res) => {
@@ -51,6 +51,8 @@ app.get('/api/session', (req, res) => {
 
 registerSocketHandlers(io)
 
-httpServer.listen(config.port, () => {
-  console.log(`IRIS C2 Server running on http://localhost:${config.port}`)
+httpServer.listen(config.port, '0.0.0.0', () => {
+  console.log(`IRIS C2 Server listening on port ${config.port} (all interfaces)`)
+  console.log(`  Local:  http://localhost:${config.port}`)
+  console.log(`  Quest:  http://<this-mac-lan-ip>:${config.port}  (not :5173 — that is the dashboard)`)
 })
