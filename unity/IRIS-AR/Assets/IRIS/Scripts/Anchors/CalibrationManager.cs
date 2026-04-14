@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using UnityEngine;
 using CesiumForUnity;
 using Unity.Mathematics;
+using IRIS.Core;
 using IRIS.Networking;
 
 namespace IRIS.Anchors
@@ -13,8 +14,26 @@ namespace IRIS.Anchors
         [SerializeField] private CesiumGeoreference georeference;
         [SerializeField] private C2Client c2Client;
 
+        [Header("Field Calibration (Passthrough Mode)")]
+        [Tooltip("GPS latitude of the calibration point on the GT green")]
+        [SerializeField] private double fieldCalibrationLat = 33.7756;
+        [Tooltip("GPS longitude of the calibration point on the GT green")]
+        [SerializeField] private double fieldCalibrationLng = -84.3963;
+
         public bool IsCalibrated { get; private set; }
         public event Action<bool> OnCalibrationChanged;
+
+        /// <summary>GPS latitude of the calibration point (set during field calibration).</summary>
+        public double CalibrationLat { get; private set; }
+
+        /// <summary>GPS longitude of the calibration point (set during field calibration).</summary>
+        public double CalibrationLng { get; private set; }
+
+        /// <summary>Unity world position at the moment of calibration.</summary>
+        public Vector3 CalibrationUnityPosition { get; private set; }
+
+        /// <summary>True if field calibration data (GPS + Unity position) is available.</summary>
+        public bool HasFieldCalibration => IsCalibrated && CalibrationLat != 0;
 
         private Guid _calibrationGroupUuid;
         private string _currentSessionId;
@@ -54,36 +73,64 @@ namespace IRIS.Anchors
                 return;
             }
 
-            if (georeference == null)
+            try
             {
-                Debug.LogWarning("[CalibrationManager] No CesiumGeoreference assigned");
-                return;
+                var camTransform = cam.transform;
+                var pose = new Pose(camTransform.position, camTransform.rotation);
+
+                double lat, lng, alt;
+
+                if (IRISManager.IsPassthroughMode)
+                {
+                    // Passthrough: use hardcoded GPS + Quest tracking position
+                    lat = fieldCalibrationLat;
+                    lng = fieldCalibrationLng;
+                    alt = 0; // Ground level in passthrough
+
+                    // Store calibration data for GeoUtils conversion (WS1 properties)
+                    CalibrationLat = lat;
+                    CalibrationLng = lng;
+                    CalibrationUnityPosition = camTransform.position;
+
+                    Debug.Log($"[CalibrationManager] Field calibration at GPS ({lat:F6}, {lng:F6}), " +
+                              $"Unity pos ({camTransform.position.x:F2}, {camTransform.position.y:F2}, {camTransform.position.z:F2})");
+                }
+                else
+                {
+                    // Cesium sim: existing ECEF conversion
+                    if (georeference == null)
+                    {
+                        Debug.LogWarning("[CalibrationManager] No CesiumGeoreference assigned");
+                        return;
+                    }
+
+                    double3 ecef = georeference.TransformUnityPositionToEarthCenteredEarthFixed(
+                        new double3(pose.position.x, pose.position.y, pose.position.z));
+                    double3 llh = CesiumWgs84Ellipsoid.EarthCenteredEarthFixedToLongitudeLatitudeHeight(ecef);
+                    lat = llh.y;
+                    lng = llh.x;
+                    alt = llh.z;
+                }
+
+                Debug.Log($"[CalibrationManager] Calibrating at lat/lng/alt ({lat:F6}, {lng:F6}, {alt:F2})");
+
+                // Create and share calibration anchor via provider
+                var anchorId = await spatialAnchorManager.CreateAndShareCalibrationAnchor(
+                    pose, _calibrationGroupUuid);
+
+                // Emit with GPS data via C2Client
+                c2Client.EmitAnchorShare(
+                    _currentSessionId, anchorId, _calibrationGroupUuid.ToString(),
+                    pose, lat, lng, alt);
+
+                IsCalibrated = true;
+                OnCalibrationChanged?.Invoke(true);
+                Debug.Log($"[CalibrationManager] Calibration complete — anchor {anchorId}");
             }
-
-            var camTransform = cam.transform;
-            var pose = new Pose(camTransform.position, camTransform.rotation);
-
-            // Convert camera position to GPS
-            double3 ecef = georeference.TransformUnityPositionToEarthCenteredEarthFixed(
-                new double3(pose.position.x, pose.position.y, pose.position.z));
-            double3 llh = CesiumWgs84Ellipsoid.EarthCenteredEarthFixedToLongitudeLatitudeHeight(ecef);
-            double lat = llh.y;
-            double lng = llh.x;
-            double alt = llh.z;
-
-            Debug.Log($"[CalibrationManager] Calibrating at lat/lng/alt ({lat:F6}, {lng:F6}, {alt:F2})");
-
-            // Create and share calibration anchor via provider
-            var anchorId = await spatialAnchorManager.CreateAndShareCalibrationAnchor(pose, _calibrationGroupUuid);
-
-            // Also emit with GPS data via C2Client
-            c2Client.EmitAnchorShare(
-                _currentSessionId, anchorId, _calibrationGroupUuid.ToString(),
-                pose, lat, lng, alt);
-
-            IsCalibrated = true;
-            OnCalibrationChanged?.Invoke(true);
-            Debug.Log($"[CalibrationManager] Calibration complete — anchor {anchorId}");
+            catch (Exception ex)
+            {
+                Debug.LogError($"[CalibrationManager] Calibration failed: {ex.Message}");
+            }
         }
 
         public async Task JoinCalibration(Guid groupUuid, double lat, double lng, double alt)
@@ -98,19 +145,37 @@ namespace IRIS.Anchors
                 return;
             }
 
-            // Compute where the GPS calibration point should be in Unity space
-            double3 ecef = CesiumWgs84Ellipsoid.LongitudeLatitudeHeightToEarthCenteredEarthFixed(
-                new double3(lng, lat, alt));
-            double3 expectedUnity = georeference.TransformEarthCenteredEarthFixedPositionToUnity(ecef);
-            var expectedPos = new Vector3((float)expectedUnity.x, (float)expectedUnity.y, (float)expectedUnity.z);
+            if (IRISManager.IsPassthroughMode)
+            {
+                // Store the shared GPS calibration point
+                CalibrationLat = lat;
+                CalibrationLng = lng;
+                CalibrationUnityPosition = anchorPose.Value.position;
 
-            // Calculate offset between anchor pose and expected Cesium position
-            var offset = expectedPos - anchorPose.Value.position;
-            ApplyCalibrationOffset(offset);
+                Debug.Log($"[CalibrationManager] Joined field calibration at GPS ({lat:F6}, {lng:F6})");
+            }
+            else
+            {
+                // Existing Cesium path
+                if (georeference == null)
+                {
+                    Debug.LogWarning("[CalibrationManager] No CesiumGeoreference for join calibration");
+                    return;
+                }
+
+                double3 ecef = CesiumWgs84Ellipsoid.LongitudeLatitudeHeightToEarthCenteredEarthFixed(
+                    new double3(lng, lat, alt));
+                double3 expectedUnity = georeference.TransformEarthCenteredEarthFixedPositionToUnity(ecef);
+                var expectedPos = new Vector3(
+                    (float)expectedUnity.x, (float)expectedUnity.y, (float)expectedUnity.z);
+
+                var offset = expectedPos - anchorPose.Value.position;
+                ApplyCalibrationOffset(offset);
+            }
 
             IsCalibrated = true;
             OnCalibrationChanged?.Invoke(true);
-            Debug.Log($"[CalibrationManager] Joined calibration — offset ({offset.x:F3}, {offset.y:F3}, {offset.z:F3})");
+            Debug.Log($"[CalibrationManager] Join calibration complete");
         }
 
         private void ApplyCalibrationOffset(Vector3 offset)

@@ -210,11 +210,40 @@ The Cesium DynamicCamera is designed for globe-scale navigation and doesn't work
    - **Device Name** → `Quest3`
    - **Heartbeat Interval** → `10`
 
-#### 4n. Save the Scene
+#### 4n. Add FieldStatusHUD
+
+1. Select **IRISManager** in the Hierarchy
+2. **Add Component** → search `FieldStatusHUD` → add it
+3. In the Inspector, find the **Field Status HUD** component:
+   - **C2 Client** field → drag the `IRISManager` GameObject from the Hierarchy (resolves to C2Client)
+   - **Calibration Manager** field → drag the `IRISManager` GameObject from the Hierarchy (resolves to CalibrationManager)
+4. The HUD will display connection status, calibration status, and a contextual hint ("Press A to calibrate" / "Press A to place marker") as a head-locked overlay in the bottom-left of the user's view
+
+#### 4o. AR Marker Visuals (Optional Polish)
+
+These steps improve marker visibility in passthrough AR. They are cosmetic — skip them if you just need functional markers.
+
+**Create Unlit AR Material:**
+
+1. In the Project panel, navigate to `Assets/IRIS/Materials/` (create the folder if needed)
+2. Right-click → **Create** → **Material** → name it `MarkerAR_Unlit`
+3. Change the shader to **Universal Render Pipeline → Unlit**
+4. Set **Base Color** to bright cyan `#00FFFF`
+5. Set **Render Face** to **Both**
+6. Set **Surface Type** to **Opaque**
+
+**Adjust Marker Prefab for AR:**
+
+1. Open `Assets/IRIS/Prefabs/AnchorPrefab.prefab`
+2. On the **MeshRenderer**, swap the material to `MarkerAR_Unlit`
+3. Change **Transform Scale** to `(0.3, 1.0, 0.3)` — a 1m tall, 30cm wide pillar suitable for human-scale AR
+4. The ground pin line and billboard label rotation are handled automatically by `AnchorVisualizer` in passthrough mode
+
+#### 4p. Save the Scene
 
 1. Press **Ctrl+S** to save
 
-#### 4o. Testing dashboard markers on Quest
+#### 4q. Testing dashboard markers on Quest
 
 1. Put **Quest** and **Mac** on the **same Wi‑Fi**.
 2. On the Mac: `cd server && npm run dev` and `cd dashboard && npm run dev -- --host`.
@@ -269,9 +298,11 @@ IRIS/
         ├── Scenes/MainAR.unity
         ├── Scripts/
         │   ├── Anchors/           # Spatial anchor management
+        │   ├── Core/              # App manager
+        │   ├── Geo/               # GPS ↔ Unity coordinate conversion
         │   ├── Markers/           # Marker data + rendering
         │   ├── Networking/        # Socket.IO client + event DTOs
-        │   └── Core/              # App manager
+        │   └── UI/                # HUD overlays (FieldStatusHUD)
         ├── Prefabs/               # AnchorPrefab, MarkerPrefab
         └── Materials/
 ```
