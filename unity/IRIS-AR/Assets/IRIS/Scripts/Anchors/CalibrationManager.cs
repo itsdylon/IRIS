@@ -15,10 +15,12 @@ namespace IRIS.Anchors
         [SerializeField] private C2Client c2Client;
 
         [Header("Field Calibration (Passthrough Mode)")]
-        [Tooltip("GPS latitude of the calibration point on the GT green")]
-        [SerializeField] private double fieldCalibrationLat = 33.7756;
-        [Tooltip("GPS longitude of the calibration point on the GT green")]
-        [SerializeField] private double fieldCalibrationLng = -84.3963;
+        [Tooltip(
+            "Reference latitude for field mode — set in Inspector. Quest has no GPS; this must match where you " +
+            "physically calibrate (Y), and dashboard markers must be placed near this lat/lng on the map.")]
+        [SerializeField] private double fieldCalibrationLat = 33.769254;
+        [Tooltip("Reference longitude for field mode (same rules as Field Calibration Lat).")]
+        [SerializeField] private double fieldCalibrationLng = -84.391748;
 
         public bool IsCalibrated { get; private set; }
         public event Action<bool> OnCalibrationChanged;

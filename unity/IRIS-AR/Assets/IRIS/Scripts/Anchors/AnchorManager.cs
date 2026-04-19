@@ -21,6 +21,8 @@ namespace IRIS.Anchors
         [SerializeField] private CalibrationManager calibrationManager;
         [FormerlySerializedAs("markerAltitude")]
         [SerializeField] private float markerHeightOffset = 2f;
+        [Tooltip("How far in front of the headset (horizontal look direction) marker:create uses for A / desktop M.")]
+        [SerializeField] private float headGazeMarkerDistanceMeters = 3f;
         /// <summary>WGS84 ellipsoid height (m) when terrain sampling is unavailable — match CesiumGeoreference height (~255 at GT).</summary>
         [SerializeField] private double ellipsoidHeightFallbackMeters = 255.0;
         [SerializeField] private bool spawnTestMarkerOnStart = false;
@@ -81,18 +83,18 @@ namespace IRIS.Anchors
             while (_pendingDeleted.TryDequeue(out var id))
                 HandleMarkerDeleted(id);
 
-            if (OVRInput.GetDown(OVRInput.Button.One))
+            // Left Touch **Y** — calibrate (sends anchor:share so dashboard leaves “Awaiting calibration”).
+            if (calibrationManager != null && !calibrationManager.IsCalibrated
+                && OVRInput.GetDown(OVRInput.RawButton.Y, OVRInput.Controller.LTouch))
             {
-                if (IRISManager.IsPassthroughMode
-                    && calibrationManager != null
-                    && !calibrationManager.IsCalibrated)
-                {
-                    calibrationManager.Calibrate();
-                }
-                else
-                {
-                    SpawnMarkerAtController();
-                }
+                calibrationManager.Calibrate();
+            }
+
+            // **A** (right Touch primary) — marker in world space along headset horizontal look after calibration.
+            if (calibrationManager != null && calibrationManager.IsCalibrated
+                && OVRInput.GetDown(OVRInput.Button.One))
+            {
+                SpawnMarkerAtHeadGaze();
             }
         }
 
@@ -348,22 +350,33 @@ namespace IRIS.Anchors
             return anchor;
         }
 
-        private void SpawnMarkerAtController()
+        /// <summary>
+        /// World-space point from <see cref="Camera.main"/> using horizontal forward (yaw only) so placement
+        /// follows where you look when you turn; avoids OVRInput local controller space (not world-aligned).
+        /// </summary>
+        private void SpawnMarkerAtHeadGaze()
         {
-            var controllerPos = OVRInput.GetLocalControllerPosition(OVRInput.Controller.RTouch);
-            var controllerRot = OVRInput.GetLocalControllerRotation(OVRInput.Controller.RTouch);
-            var spawnPos = controllerPos + controllerRot * Vector3.forward * 0.5f;
+            var cam = Camera.main;
+            if (cam == null)
+            {
+                Debug.LogWarning("[AnchorManager] Cannot place marker — no Camera.main");
+                return;
+            }
 
+            var dir = cam.transform.forward;
+            dir.y = 0f;
+            if (dir.sqrMagnitude < 1e-8f)
+                dir = cam.transform.forward.normalized;
+            else
+                dir.Normalize();
+
+            var spawnPos = cam.transform.position + dir * headGazeMarkerDistanceMeters;
             EmitMarkerCreateFromWorldPosition(spawnPos, "Placed Marker", "waypoint");
         }
 
         public void PlaceMarkerAtCamera()
         {
-            var cam = Camera.main;
-            if (cam == null) return;
-
-            var spawnPos = cam.transform.position + cam.transform.forward * 2f;
-            EmitMarkerCreateFromWorldPosition(spawnPos, "Placed Marker", "waypoint");
+            SpawnMarkerAtHeadGaze();
         }
 
         private void EmitMarkerCreateFromWorldPosition(Vector3 worldPos, string label, string type)

@@ -454,8 +454,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 446904894}
   serializedVersion: 2
-  m_LocalRotation: {x: -0.00000006700198, y: -7.731896e-15, z: 3.3143786e-11, w: 1}
-  m_LocalPosition: {x: -1.5775863e-10, y: -5, z: 0.0000006216542}
+  m_LocalRotation: {x: -0.00000006700198, y: -7.742127e-15, z: 3.3143793e-11, w: 1}
+  m_LocalPosition: {x: -3.3238162e-10, y: -5, z: 0.0000006216542}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -602,20 +602,20 @@ MonoBehaviour:
     c0:
       x: 0.9952210962833508
       y: 0.09764716848206877
-      z: 0.000000000036864875895637103
+      z: 0.000000000036864900083342267
       w: 0
     c1:
-      x: 0.08116640664867747
+      x: 0.08116640664867746
       y: -0.8272489769286588
       z: 0.5559416737412558
       w: 0
     c2:
-      x: -0.054286130312512136
+      x: -0.05428613031251216
       y: 0.5532848820073812
       z: 0.8312213035033278
       w: 0
     c3:
-      x: 518247.14366888156
+      x: 518247.1436688814
       y: -5281981.015867192
       z: 3525923.1620544624
       w: 1
@@ -1214,7 +1214,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 104920b488e07b346b7421ac0f25b665, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  serverUrl: http://10.136.22.199:3000
+  serverUrl: http://10.136.25.65:3000
+  editorPlayModeServerUrl: http://localhost:3000
+  editorDeviceName: Editor
   deviceName: Quest3
   deviceType: ar-headset
   heartbeatInterval: 10
@@ -1235,6 +1237,7 @@ MonoBehaviour:
   c2Client: {fileID: 1429241113}
   georeference: {fileID: 1166677491}
   terrainHeightSampler: {fileID: 0}
+  calibrationManager: {fileID: 1429241117}
   markerHeightOffset: 2
   ellipsoidHeightFallbackMeters: 255
   spawnTestMarkerOnStart: 0
@@ -1252,6 +1255,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   anchorManager: {fileID: 0}
   c2Client: {fileID: 1429241113}
+  autoLiftRigAboveTerrainOnStart: 1
+  disableTerrainLiftOnAndroid: 1
+  eyeHeightAboveGround: 1.6
+  raycastStartHeight: 200
+  maxGroundCheckAttempts: 120
+  groundCheckIntervalSeconds: 0.25
+  enableThumbstickLocomotion: 1
+  thumbstickMoveSpeed: 2
+  thumbstickDeadzone: 0.15
+  passthroughFieldMode: 1
 --- !u!114 &1429241116
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1281,6 +1294,8 @@ MonoBehaviour:
   spatialAnchorManager: {fileID: 1429241118}
   georeference: {fileID: 1166677491}
   c2Client: {fileID: 1429241113}
+  fieldCalibrationLat: 33.769254
+  fieldCalibrationLng: -84.391748
 --- !u!114 &1429241118
 MonoBehaviour:
   m_ObjectHideFlags: 0

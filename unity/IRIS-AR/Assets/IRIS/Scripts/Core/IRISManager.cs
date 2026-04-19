@@ -23,7 +23,17 @@ namespace IRIS.Core
         [SerializeField] private float thumbstickMoveSpeed = 2f;
         [SerializeField] private float thumbstickDeadzone = 0.15f;
 
-        /// <summary>True when running on Quest hardware with passthrough (not Cesium sim).</summary>
+        [Tooltip(
+            "Off (default): VR builds show the Cesium globe and use globe anchors for markers (Quest 2/3 geo testing). " +
+            "On: hide Cesium tiles, disable terrain sampler, use field calibration + passthrough-style marker placement.")]
+        [SerializeField] private bool passthroughFieldMode = false;
+
+        [Tooltip(
+            "Quest passthrough field mode: ask the runtime to suppress Guardian boundary redraws while passthrough is active " +
+            "(Meta Boundary Visibility API). Requires Oculus Project Config → Boundary visibility support, and passthrough running.")]
+        [SerializeField] private bool suppressBoundaryWhilePassthrough = true;
+
+        /// <summary>True when using real-world / field calibration flow (not the Cesium virtual globe).</summary>
         public static bool IsPassthroughMode { get; private set; }
 
         private bool _isVrRuntime;
@@ -49,10 +59,42 @@ namespace IRIS.Core
         {
             ConfigureRuntimeCameraRig();
 
+            if (passthroughFieldMode && _isVrRuntime)
+            {
+                StartCoroutine(EnableInsightPassthroughNextFrame());
+            }
+
             var onQuest = Application.platform == RuntimePlatform.Android;
             if (autoLiftRigAboveTerrainOnStart && !(onQuest && disableTerrainLiftOnAndroid))
             {
                 StartCoroutine(AlignRigToTerrainWhenReady());
+            }
+        }
+
+        /// <summary>
+        /// OVRManager may not assign <see cref="OVRManager.instance"/> until OVRCameraRig awakens; wait one frame.
+        /// </summary>
+        private IEnumerator EnableInsightPassthroughNextFrame()
+        {
+            yield return null;
+            var ovr = OVRManager.instance != null ? OVRManager.instance : Object.FindObjectOfType<OVRManager>();
+            if (ovr == null)
+            {
+                Debug.LogWarning(
+                    "[IRISManager] Passthrough field mode: no OVRManager found. Add OVRCameraRig (with OVRManager) to the scene.");
+                yield break;
+            }
+
+            ovr.isInsightPassthroughEnabled = true;
+            Debug.Log("[IRISManager] Enabled OVRManager.isInsightPassthroughEnabled for camera passthrough.");
+
+            yield return null;
+            if (suppressBoundaryWhilePassthrough)
+            {
+                ovr.shouldBoundaryVisibilityBeSuppressed = ovr.isInsightPassthroughEnabled;
+                Debug.Log(
+                    "[IRISManager] Requested Guardian boundary visibility suppression while passthrough is active " +
+                    $"(isBoundaryVisibilitySuppressed={ovr.isBoundaryVisibilitySuppressed}).");
             }
         }
 
@@ -62,12 +104,20 @@ namespace IRIS.Core
             {
                 ApplyThumbstickLocomotion();
             }
+
+            // Keep aligned with passthrough state every frame (Meta OVRManager requirement).
+            if (_isVrRuntime && IsPassthroughMode && suppressBoundaryWhilePassthrough)
+            {
+                var ovr = OVRManager.instance;
+                if (ovr != null)
+                    ovr.shouldBoundaryVisibilityBeSuppressed = ovr.isInsightPassthroughEnabled;
+            }
         }
 
         private void ConfigureRuntimeCameraRig()
         {
             _isVrRuntime = Application.platform == RuntimePlatform.Android || XRSettings.isDeviceActive;
-            IsPassthroughMode = _isVrRuntime;
+            IsPassthroughMode = _isVrRuntime && passthroughFieldMode;
             if (!_isVrRuntime) return;
 
             var ovrRig = Resources.FindObjectsOfTypeAll<GameObject>()
@@ -85,7 +135,13 @@ namespace IRIS.Core
                 Debug.Log("[IRISManager] Disabled FlyCamera for VR runtime");
             }
 
-            // Disable Cesium 3D tilesets — they'd render over passthrough
+            if (!passthroughFieldMode)
+            {
+                Debug.Log("[IRISManager] Cesium globe mode on VR — tilesets stay enabled.");
+                return;
+            }
+
+            // Passthrough / field mode: hide globe tiles (they would cover the real world)
             var tilesets = FindObjectsOfType<Cesium3DTileset>();
             foreach (var tileset in tilesets)
             {
@@ -93,12 +149,11 @@ namespace IRIS.Core
                 Debug.Log($"[IRISManager] Disabled Cesium tileset: {tileset.gameObject.name}");
             }
 
-            // Disable terrain height sampler — no Cesium terrain in passthrough
             var heightSampler = FindObjectOfType<IRIS.Geo.TerrainHeightSampler>();
             if (heightSampler != null)
             {
                 heightSampler.enabled = false;
-                Debug.Log("[IRISManager] Disabled TerrainHeightSampler for passthrough mode");
+                Debug.Log("[IRISManager] Disabled TerrainHeightSampler for passthrough field mode");
             }
         }
 
