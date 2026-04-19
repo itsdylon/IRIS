@@ -1,5 +1,6 @@
 using UnityEngine;
 using TMPro;
+using IRIS.Core;
 
 namespace IRIS.Anchors
 {
@@ -7,6 +8,7 @@ namespace IRIS.Anchors
     {
         private const float PendingColorDimFactor = 0.6f;
         private const float PendingAlpha = 0.65f;
+        private const float GroundPinWidth = 0.02f;
         private static readonly Vector3 GlyphScale = Vector3.one * 2.35f;
         private static readonly Vector3 GlyphLocalPos = new Vector3(0f, 1.15f, 0f);
 
@@ -29,6 +31,7 @@ namespace IRIS.Anchors
         private TextMeshPro _labelText;
         private MeshFilter _glyphMeshFilter;
         private Transform _glyphTransform;
+        private LineRenderer _groundPin;
 
         private void Awake()
         {
@@ -57,6 +60,11 @@ namespace IRIS.Anchors
         {
             ApplyGlyphMesh(type);
             SetColor(GetColorForType(type));
+
+            if (IRISManager.IsPassthroughMode && _groundPin == null)
+            {
+                AddGroundPin();
+            }
         }
 
         public void SetTypePending(string type)
@@ -97,6 +105,30 @@ namespace IRIS.Anchors
             {
                 SetLabel(label);
             }
+        }
+
+        private void LateUpdate()
+        {
+            if (_labelText == null) return;
+
+            var cam = Camera.main;
+            if (cam == null) return;
+
+            _labelText.transform.rotation = Quaternion.LookRotation(
+                _labelText.transform.position - cam.transform.position);
+        }
+
+        private void AddGroundPin()
+        {
+            _groundPin = gameObject.AddComponent<LineRenderer>();
+            _groundPin.positionCount = 2;
+            _groundPin.startWidth = GroundPinWidth;
+            _groundPin.endWidth = GroundPinWidth;
+            _groundPin.material = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
+            _groundPin.material.color = Color.white;
+            _groundPin.useWorldSpace = false;
+            _groundPin.SetPosition(0, Vector3.zero);
+            _groundPin.SetPosition(1, Vector3.down * transform.position.y);
         }
     }
 }

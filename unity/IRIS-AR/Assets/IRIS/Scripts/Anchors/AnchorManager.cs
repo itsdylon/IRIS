@@ -1,9 +1,11 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Serialization;
 using CesiumForUnity;
 using Unity.Mathematics;
+using IRIS.Core;
 using IRIS.Geo;
 using IRIS.Markers;
 using IRIS.Networking;
@@ -16,6 +18,7 @@ namespace IRIS.Anchors
         [SerializeField] private C2Client c2Client;
         [SerializeField] private CesiumGeoreference georeference;
         [SerializeField] private TerrainHeightSampler terrainHeightSampler;
+        [SerializeField] private CalibrationManager calibrationManager;
         [FormerlySerializedAs("markerAltitude")]
         [SerializeField] private float markerHeightOffset = 2f;
         /// <summary>WGS84 ellipsoid height (m) when terrain sampling is unavailable — match CesiumGeoreference height (~255 at GT).</summary>
@@ -50,6 +53,7 @@ namespace IRIS.Anchors
                 c2Client.OnMarkerCreated += (m) => _pendingCreated.Enqueue(m);
                 c2Client.OnMarkerUpdated += (m) => _pendingUpdated.Enqueue(m);
                 c2Client.OnMarkerDeleted += (id) => _pendingDeleted.Enqueue(id);
+                c2Client.OnDisconnectedEvent += OnServerDisconnected;
             }
         }
 
@@ -79,7 +83,16 @@ namespace IRIS.Anchors
 
             if (OVRInput.GetDown(OVRInput.Button.One))
             {
-                SpawnMarkerAtController();
+                if (IRISManager.IsPassthroughMode
+                    && calibrationManager != null
+                    && !calibrationManager.IsCalibrated)
+                {
+                    calibrationManager.Calibrate();
+                }
+                else
+                {
+                    SpawnMarkerAtController();
+                }
             }
         }
 
@@ -89,39 +102,18 @@ namespace IRIS.Anchors
 
             if (marker.lat != 0 && marker.lng != 0)
             {
-                var anchor = SpawnAnchor(Vector3.zero, marker);
-                _activeAnchors[marker.id] = anchor;
-
-                double height;
-                if (terrainHeightSampler != null && terrainHeightSampler.IsAvailable)
-                    height = await terrainHeightSampler.SampleHeightAsync(marker.lng, marker.lat, markerHeightOffset);
-                else
-                    height = ellipsoidHeightFallbackMeters + markerHeightOffset;
-
-                if (anchor == null)
+                if (IRISManager.IsPassthroughMode)
                 {
-                    Debug.LogWarning($"[AnchorManager] Marker '{marker.id}' destroyed during height sampling — skipping");
-                    _activeAnchors.Remove(marker.id);
-                    return;
+                    HandleMarkerCreatedPassthrough(marker);
                 }
-
-                var globeAnchor = anchor.GetComponent<CesiumGlobeAnchor>();
-                if (globeAnchor == null)
-                    globeAnchor = anchor.AddComponent<CesiumGlobeAnchor>();
-                globeAnchor.longitudeLatitudeHeight = new double3(marker.lng, marker.lat, height);
-
-                SetAnchorType(anchor, marker.type);
-                var cam = Camera.main;
-                var dist = cam != null ? Vector3.Distance(cam.transform.position, anchor.transform.position) : -1f;
-                Debug.Log($"[AnchorManager] Spawned geo marker '{marker.label}' at lat/lng ({marker.lat:F6}, {marker.lng:F6}), height {height:F1}m — {dist:F0}m from camera");
-
-                if (c2Client != null && marker.status != "placed")
+                else
                 {
-                    c2Client.EmitMarkerPlace(marker.id, anchor.transform.position);
+                    await HandleMarkerCreatedCesium(marker);
                 }
             }
             else
             {
+                // No lat/lng — spawn at origin as pending
                 var basePos = georeference != null
                     ? georeference.transform.position + Vector3.up * markerHeightOffset
                     : new Vector3(0f, markerHeightOffset, 0f);
@@ -129,7 +121,72 @@ namespace IRIS.Anchors
                 var anchor = SpawnAnchor(basePos, marker);
                 SetAnchorType(anchor, marker.type, isPending: true);
                 _activeAnchors[marker.id] = anchor;
-                Debug.Log($"[AnchorManager] Spawned pending marker '{marker.label}' at georeference origin (no lat/lng)");
+                Debug.Log($"[AnchorManager] Spawned pending marker '{marker.label}' at origin (no lat/lng)");
+            }
+        }
+
+        private async Task HandleMarkerCreatedCesium(MarkerData marker)
+        {
+            var anchor = SpawnAnchor(Vector3.zero, marker);
+            _activeAnchors[marker.id] = anchor;
+
+            double height;
+            if (terrainHeightSampler != null && terrainHeightSampler.IsAvailable)
+                height = await terrainHeightSampler.SampleHeightAsync(marker.lng, marker.lat, markerHeightOffset);
+            else
+                height = ellipsoidHeightFallbackMeters + markerHeightOffset;
+
+            if (anchor == null)
+            {
+                Debug.LogWarning($"[AnchorManager] Marker '{marker.id}' destroyed during height sampling — skipping");
+                _activeAnchors.Remove(marker.id);
+                return;
+            }
+
+            var globeAnchor = anchor.GetComponent<CesiumGlobeAnchor>();
+            if (globeAnchor == null)
+                globeAnchor = anchor.AddComponent<CesiumGlobeAnchor>();
+            globeAnchor.longitudeLatitudeHeight = new double3(marker.lng, marker.lat, height);
+
+            SetAnchorType(anchor, marker.type);
+            var cam = Camera.main;
+            var dist = cam != null ? Vector3.Distance(cam.transform.position, anchor.transform.position) : -1f;
+            Debug.Log($"[AnchorManager] Spawned geo marker '{marker.label}' at lat/lng ({marker.lat:F6}, {marker.lng:F6}), height {height:F1}m — {dist:F0}m from camera");
+
+            if (c2Client != null && marker.status != "placed")
+            {
+                c2Client.EmitMarkerPlace(marker.id, anchor.transform.position);
+            }
+        }
+
+        private void HandleMarkerCreatedPassthrough(MarkerData marker)
+        {
+            if (calibrationManager == null || !calibrationManager.HasFieldCalibration)
+            {
+                Debug.LogWarning($"[AnchorManager] Cannot place marker '{marker.label}' — no field calibration. Calibrate first.");
+                return;
+            }
+
+            // Convert marker GPS to local Unity position relative to calibration point
+            var localOffset = GeoUtils.LatLngToUnityPosition(
+                marker.lat, marker.lng,
+                calibrationManager.CalibrationLat, calibrationManager.CalibrationLng);
+
+            // Offset is relative to calibration point — add calibration Unity position
+            var worldPos = calibrationManager.CalibrationUnityPosition + localOffset;
+
+            // Override Y to eye-level height offset (ground is real in passthrough)
+            worldPos.y = markerHeightOffset;
+
+            var anchor = SpawnAnchorUnparented(worldPos, marker);
+            _activeAnchors[marker.id] = anchor;
+
+            SetAnchorType(anchor, marker.type);
+            Debug.Log($"[AnchorManager] Spawned passthrough marker '{marker.label}' at ({worldPos.x:F1}, {worldPos.y:F1}, {worldPos.z:F1}) — offset from calibration");
+
+            if (c2Client != null && marker.status != "placed")
+            {
+                c2Client.EmitMarkerPlace(marker.id, anchor.transform.position);
             }
         }
 
@@ -138,32 +195,49 @@ namespace IRIS.Anchors
             if (!_activeAnchors.TryGetValue(marker.id, out var anchor)) return;
             if (anchor == null) return;
 
-            // Dashboard markers: keep lat/lng + Cesium so beacons stay fixed to the globe, not the camera.
-            if (marker.lat != 0 && marker.lng != 0 && georeference != null)
+            if (IRISManager.IsPassthroughMode)
             {
-                if (anchor.transform.parent != georeference.transform)
-                    anchor.transform.SetParent(georeference.transform, true);
-
-                var globeAnchor = anchor.GetComponent<CesiumGlobeAnchor>();
-                if (globeAnchor == null)
+                // In passthrough, update position via GeoUtils
+                if (marker.lat != 0 && marker.lng != 0
+                    && calibrationManager != null && calibrationManager.HasFieldCalibration)
                 {
-                    globeAnchor = anchor.AddComponent<CesiumGlobeAnchor>();
-                    globeAnchor.longitudeLatitudeHeight = new double3(marker.lng, marker.lat, ellipsoidHeightFallbackMeters + markerHeightOffset);
-                }
-                else
-                {
-                    var h = globeAnchor.longitudeLatitudeHeight.z;
-                    globeAnchor.longitudeLatitudeHeight = new double3(marker.lng, marker.lat, h);
+                    var localOffset = GeoUtils.LatLngToUnityPosition(
+                        marker.lat, marker.lng,
+                        calibrationManager.CalibrationLat, calibrationManager.CalibrationLng);
+                    var worldPos = calibrationManager.CalibrationUnityPosition + localOffset;
+                    worldPos.y = markerHeightOffset;
+                    anchor.transform.position = worldPos;
                 }
             }
-            else if (marker.position != null)
+            else
             {
-                var globeAnchor = anchor.GetComponent<CesiumGlobeAnchor>();
-                if (globeAnchor != null)
-                    Destroy(globeAnchor);
+                // Cesium path
+                if (marker.lat != 0 && marker.lng != 0 && georeference != null)
+                {
+                    if (anchor.transform.parent != georeference.transform)
+                        anchor.transform.SetParent(georeference.transform, true);
 
-                anchor.transform.position = marker.GetPositionVector();
-                anchor.transform.SetParent(null, true);
+                    var globeAnchor = anchor.GetComponent<CesiumGlobeAnchor>();
+                    if (globeAnchor == null)
+                    {
+                        globeAnchor = anchor.AddComponent<CesiumGlobeAnchor>();
+                        globeAnchor.longitudeLatitudeHeight = new double3(marker.lng, marker.lat, ellipsoidHeightFallbackMeters + markerHeightOffset);
+                    }
+                    else
+                    {
+                        var h = globeAnchor.longitudeLatitudeHeight.z;
+                        globeAnchor.longitudeLatitudeHeight = new double3(marker.lng, marker.lat, h);
+                    }
+                }
+                else if (marker.position != null)
+                {
+                    var globeAnchor = anchor.GetComponent<CesiumGlobeAnchor>();
+                    if (globeAnchor != null)
+                        Destroy(globeAnchor);
+
+                    anchor.transform.position = marker.GetPositionVector();
+                    anchor.transform.SetParent(null, true);
+                }
             }
 
             SetAnchorType(anchor, marker.type);
@@ -249,6 +323,31 @@ namespace IRIS.Anchors
             return anchor;
         }
 
+        private GameObject SpawnAnchorUnparented(Vector3 position, MarkerData data)
+        {
+            if (anchorPrefab == null)
+            {
+                Debug.LogError("[AnchorManager] anchorPrefab is not assigned!");
+                return null;
+            }
+
+            var anchor = Instantiate(anchorPrefab, position, Quaternion.identity);
+
+            var visualizer = anchor.GetComponent<AnchorVisualizer>();
+            if (visualizer != null)
+            {
+                visualizer.SetLabel(data.label);
+            }
+
+            var renderer = anchor.GetComponent<MarkerRenderer>();
+            if (renderer != null)
+            {
+                renderer.Initialize(data);
+            }
+
+            return anchor;
+        }
+
         private void SpawnMarkerAtController()
         {
             var controllerPos = OVRInput.GetLocalControllerPosition(OVRInput.Controller.RTouch);
@@ -269,18 +368,50 @@ namespace IRIS.Anchors
 
         private void EmitMarkerCreateFromWorldPosition(Vector3 worldPos, string label, string type)
         {
-            if (c2Client == null || georeference == null) return;
+            if (c2Client == null) return;
 
-            double3 ecef = georeference.TransformUnityPositionToEarthCenteredEarthFixed(new double3(worldPos.x, worldPos.y, worldPos.z));
-            double3 llh = CesiumWgs84Ellipsoid.EarthCenteredEarthFixedToLongitudeLatitudeHeight(ecef);
-            c2Client.EmitMarkerCreate(llh.y, llh.x, label, type);
-            Debug.Log($"[AnchorManager] Emitting marker:create at lat/lng ({llh.y:F6}, {llh.x:F6})");
+            if (IRISManager.IsPassthroughMode)
+            {
+                if (calibrationManager == null || !calibrationManager.HasFieldCalibration)
+                {
+                    Debug.LogWarning("[AnchorManager] Cannot create marker — no field calibration");
+                    return;
+                }
+
+                // Reverse: local Unity position -> GPS via GeoUtils
+                var relativePos = worldPos - calibrationManager.CalibrationUnityPosition;
+                var (lat, lng) = GeoUtils.UnityPositionToLatLng(
+                    relativePos,
+                    calibrationManager.CalibrationLat,
+                    calibrationManager.CalibrationLng);
+
+                c2Client.EmitMarkerCreate(lat, lng, label, type);
+                Debug.Log($"[AnchorManager] Emitting passthrough marker:create at lat/lng ({lat:F6}, {lng:F6})");
+            }
+            else
+            {
+                if (georeference == null) return;
+
+                double3 ecef = georeference.TransformUnityPositionToEarthCenteredEarthFixed(
+                    new double3(worldPos.x, worldPos.y, worldPos.z));
+                double3 llh = CesiumWgs84Ellipsoid.EarthCenteredEarthFixedToLongitudeLatitudeHeight(ecef);
+                c2Client.EmitMarkerCreate(llh.y, llh.x, label, type);
+                Debug.Log($"[AnchorManager] Emitting marker:create at lat/lng ({llh.y:F6}, {llh.x:F6})");
+            }
+        }
+
+        private void OnServerDisconnected()
+        {
+            ClearSpawnedAnchorsInScene();
+            Debug.Log("[AnchorManager] Server disconnected — cleared anchors for clean re-sync");
         }
 
         private void OnDestroy()
         {
-            // Lambdas are used for subscriptions so explicit unsubscribe isn't possible,
-            // but the queues will simply stop being drained once this object is destroyed.
+            if (c2Client != null)
+            {
+                c2Client.OnDisconnectedEvent -= OnServerDisconnected;
+            }
         }
     }
 }

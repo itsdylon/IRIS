@@ -2,6 +2,7 @@ using System.Collections;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.XR;
+using CesiumForUnity;
 using IRIS.Anchors;
 using IRIS.Networking;
 
@@ -21,6 +22,9 @@ namespace IRIS.Core
         [SerializeField] private bool enableThumbstickLocomotion = true;
         [SerializeField] private float thumbstickMoveSpeed = 2f;
         [SerializeField] private float thumbstickDeadzone = 0.15f;
+
+        /// <summary>True when running on Quest hardware with passthrough (not Cesium sim).</summary>
+        public static bool IsPassthroughMode { get; private set; }
 
         private bool _isVrRuntime;
         private bool _terrainAlignFinished;
@@ -63,6 +67,7 @@ namespace IRIS.Core
         private void ConfigureRuntimeCameraRig()
         {
             _isVrRuntime = Application.platform == RuntimePlatform.Android || XRSettings.isDeviceActive;
+            IsPassthroughMode = _isVrRuntime;
             if (!_isVrRuntime) return;
 
             var ovrRig = Resources.FindObjectsOfTypeAll<GameObject>()
@@ -78,6 +83,22 @@ namespace IRIS.Core
             {
                 flyCamera.SetActive(false);
                 Debug.Log("[IRISManager] Disabled FlyCamera for VR runtime");
+            }
+
+            // Disable Cesium 3D tilesets — they'd render over passthrough
+            var tilesets = FindObjectsOfType<Cesium3DTileset>();
+            foreach (var tileset in tilesets)
+            {
+                tileset.gameObject.SetActive(false);
+                Debug.Log($"[IRISManager] Disabled Cesium tileset: {tileset.gameObject.name}");
+            }
+
+            // Disable terrain height sampler — no Cesium terrain in passthrough
+            var heightSampler = FindObjectOfType<IRIS.Geo.TerrainHeightSampler>();
+            if (heightSampler != null)
+            {
+                heightSampler.enabled = false;
+                Debug.Log("[IRISManager] Disabled TerrainHeightSampler for passthrough mode");
             }
         }
 
