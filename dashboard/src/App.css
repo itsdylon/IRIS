@@ -37,6 +37,79 @@
   flex: 1;
 }
 
+/* Leaflet divIcon: remove default white box around custom SVG markers */
+.iris-leaflet-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+/* Map overlay: marker-type legend (readable, not cramped) */
+.map-marker-legend {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  z-index: 1000;
+  padding: 10px 12px;
+  max-width: 220px;
+  background: rgba(17, 24, 39, 0.94);
+  color: #fff;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  line-height: 1.35;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+}
+
+.map-marker-legend__title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #9ca3af;
+  margin-bottom: 2px;
+}
+
+.map-marker-legend__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.map-marker-legend__glyph {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  line-height: 0;
+  margin-top: 1px;
+}
+
+.map-marker-legend__glyph svg {
+  display: block;
+}
+
+.map-marker-legend__text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.map-marker-legend__text strong {
+  font-size: 11px;
+  font-weight: 600;
+  color: #f9fafb;
+}
+
+.map-marker-legend__desc {
+  display: block;
+  color: #9ca3af;
+  font-weight: 400;
+  font-size: 9px;
+  line-height: 1.35;
+}
+
 /* Marker Panel */
 .marker-panel {
   padding: 1rem;

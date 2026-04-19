@@ -1,6 +1,10 @@
 import { DeviceStore } from '../models/Device.js'
 
 export function registerDeviceHandlers(io, socket) {
+  socket.on('device:list:request', () => {
+    socket.emit('device:list', DeviceStore.list())
+  })
+
   socket.on('device:register', ({ name, type }) => {
     const device = DeviceStore.register({ name, type, socketId: socket.id })
     socket.deviceId = device.id

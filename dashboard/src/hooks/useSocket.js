@@ -44,12 +44,20 @@ export function useDevices() {
   const [devices, setDevices] = useState([])
 
   useEffect(() => {
-    socket.on('device:list', (data) => {
+    const onList = (data) => {
       setDevices(data)
-    })
+    }
+    const requestList = () => {
+      socket.emit('device:list:request')
+    }
+
+    socket.on('device:list', onList)
+    socket.on('connect', requestList)
+    requestList()
 
     return () => {
-      socket.off('device:list')
+      socket.off('device:list', onList)
+      socket.off('connect', requestList)
     }
   }, [])
 

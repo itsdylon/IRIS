@@ -7,14 +7,19 @@ namespace IRIS.Anchors
     {
         private const float PendingColorDimFactor = 0.6f;
         private const float PendingAlpha = 0.65f;
+        private static readonly Vector3 GlyphScale = Vector3.one * 2.35f;
+        private static readonly Vector3 GlyphLocalPos = new Vector3(0f, 1.15f, 0f);
 
+        /// <summary>Tactical scheme: threat=red ▲, friendly=blue ●, waypoint/objective=yellow ◆, extraction=green +, POI=orange ⯄, generic=white ▼.</summary>
         public static Color GetColorForType(string type) => type switch
         {
-            "waypoint" => new Color(0.23f, 0.51f, 0.96f), // blue
-            "threat" => new Color(0.94f, 0.27f, 0.27f), // red
-            "objective" => new Color(0.13f, 0.77f, 0.37f), // green
-            "info" => new Color(0.92f, 0.70f, 0.03f), // yellow
-            _ => Color.white, // generic
+            "threat" => new Color(0.86f, 0.15f, 0.15f),
+            "friendly" => new Color(0.15f, 0.41f, 0.92f),
+            "waypoint" => new Color(0.98f, 0.82f, 0.09f),
+            "objective" => new Color(0.98f, 0.82f, 0.09f),
+            "extraction" => new Color(0.09f, 0.64f, 0.29f),
+            "info" => new Color(0.92f, 0.35f, 0.09f),
+            _ => new Color(0.94f, 0.96f, 0.98f),
         };
 
         [SerializeField] private Color anchorColor = Color.cyan;
@@ -22,10 +27,16 @@ namespace IRIS.Anchors
 
         private Renderer _renderer;
         private TextMeshPro _labelText;
+        private MeshFilter _glyphMeshFilter;
+        private Transform _glyphTransform;
 
         private void Awake()
         {
-            _renderer = GetComponentInChildren<Renderer>();
+            _glyphTransform = transform.childCount > 0 ? transform.GetChild(0) : transform;
+            _glyphMeshFilter = _glyphTransform.GetComponent<MeshFilter>();
+            _renderer = _glyphMeshFilter != null
+                ? _glyphMeshFilter.GetComponent<Renderer>()
+                : GetComponentInChildren<Renderer>();
             _labelText = GetComponentInChildren<TextMeshPro>();
             if (_renderer != null && _renderer.sharedMaterial != null)
             {
@@ -44,11 +55,13 @@ namespace IRIS.Anchors
 
         public void SetType(string type)
         {
+            ApplyGlyphMesh(type);
             SetColor(GetColorForType(type));
         }
 
         public void SetTypePending(string type)
         {
+            ApplyGlyphMesh(type);
             var baseColor = GetColorForType(type);
             var pendingColor = new Color(
                 baseColor.r * PendingColorDimFactor,
@@ -58,6 +71,14 @@ namespace IRIS.Anchors
             );
 
             SetColor(pendingColor);
+        }
+
+        private void ApplyGlyphMesh(string type)
+        {
+            if (_glyphMeshFilter == null) return;
+            _glyphMeshFilter.sharedMesh = MarkerGlyphMeshes.ForMarkerType(string.IsNullOrEmpty(type) ? "generic" : type);
+            _glyphTransform.localScale = GlyphScale;
+            _glyphTransform.localPosition = GlyphLocalPos;
         }
 
         public void SetLabel(string text)

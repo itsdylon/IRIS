@@ -1,4 +1,4 @@
-import { MARKER_TYPES } from '../constants/markerTypes'
+import { MARKER_LEGEND_IDS, resolveMarkerType } from '../constants/markerTypes'
 
 export default function MarkerCreateForm({ markerDraft, onDraftChange, onSubmit, onCancel }) {
   if (!markerDraft) return null
@@ -42,11 +42,14 @@ export default function MarkerCreateForm({ markerDraft, onDraftChange, onSubmit,
           onChange={(event) => onDraftChange('type', event.target.value)}
           style={{ width: '100%' }}
         >
-          {Object.values(MARKER_TYPES).map((typeOption) => (
-            <option key={typeOption.id} value={typeOption.id}>
-              {typeOption.label}
-            </option>
-          ))}
+          {MARKER_LEGEND_IDS.map((id) => {
+            const typeOption = resolveMarkerType(id)
+            return (
+              <option key={id} value={id}>
+                {typeOption.label}
+              </option>
+            )
+          })}
         </select>
       </label>
 
