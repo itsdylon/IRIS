@@ -1,7 +1,8 @@
-import { MARKER_TYPES } from '../constants/markerTypes'
+import { DEFAULT_MARKER_TYPE, resolveMarkerType } from '../constants/markerTypes'
+import { markerGlyphSvgString } from '../utils/markerGlyphSvg'
 
 export default function MarkerPanel({ markers, onDelete }) {
-  const getTypeColor = (type) => MARKER_TYPES[type]?.color || MARKER_TYPES.generic.color
+  const getTypeDef = (type) => resolveMarkerType(type || DEFAULT_MARKER_TYPE)
 
   const getStatusBadgeStyle = (status) => {
     if (status === 'placed') {
@@ -38,19 +39,17 @@ export default function MarkerPanel({ markers, onDelete }) {
                   ? `${m.position.x.toFixed(2)}, ${m.position.y.toFixed(2)}, ${m.position.z.toFixed(2)}`
                   : 'Pending placement'}
               </span>
-              <span className="marker-type" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <span className="marker-type" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                 <span
                   aria-hidden="true"
-                  style={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: '50%',
-                    background: getTypeColor(m.type),
-                    border: '1px solid #333',
-                    display: 'inline-block',
+                  style={{ width: 20, height: 20, flexShrink: 0 }}
+                  dangerouslySetInnerHTML={{
+                    __html: markerGlyphSvgString(m.type || DEFAULT_MARKER_TYPE, { size: 20 }),
                   }}
                 />
-                {m.type || 'generic'}
+                <span>
+                  {getTypeDef(m.type).label} <span style={{ opacity: 0.7 }}>({m.type || DEFAULT_MARKER_TYPE})</span>
+                </span>
               </span>
               <span
                 style={{

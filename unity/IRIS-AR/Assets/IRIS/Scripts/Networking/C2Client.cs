@@ -12,6 +12,10 @@ namespace IRIS.Networking
     public class C2Client : MonoBehaviour
     {
         [SerializeField] private string serverUrl = "http://localhost:3000";
+        [Tooltip("Editor only: when non-empty, used instead of serverUrl. Quest/device builds always use serverUrl (set LAN IP there).")]
+        [SerializeField] private string editorPlayModeServerUrl = "http://localhost:3000";
+        [Tooltip("Editor only: device name shown on the dashboard.")]
+        [SerializeField] private string editorDeviceName = "Editor";
         [SerializeField] private string deviceName = "Quest3";
         [SerializeField] private string deviceType = "ar-headset";
         [SerializeField] private float heartbeatInterval = 10f;
@@ -36,12 +40,18 @@ namespace IRIS.Networking
         private string _deviceId;
         private Coroutine _heartbeatCoroutine;
 
-        /// <summary>Device ID assigned by server (set after device:registered event).</summary>
-        public string DeviceId => _deviceId;
+        private string EffectiveConnectUrl =>
+            Application.isEditor && !string.IsNullOrWhiteSpace(editorPlayModeServerUrl)
+                ? editorPlayModeServerUrl.Trim()
+                : serverUrl;
+
+        private string RegisterDeviceName =>
+            Application.isEditor ? editorDeviceName : deviceName;
 
         private void Start()
         {
-            var uri = new Uri(serverUrl);
+            var connectUrl = EffectiveConnectUrl;
+            var uri = new Uri(connectUrl);
             var options = new SocketIOOptions
             {
                 Transport = TransportProtocol.WebSocket,
@@ -58,7 +68,7 @@ namespace IRIS.Networking
 
             RegisterSocketEvents();
 
-            Debug.Log($"[C2Client] Connecting to {serverUrl}...");
+            Debug.Log($"[C2Client] Connecting to {connectUrl}...");
             _socket.Connect();
         }
 
@@ -219,7 +229,7 @@ namespace IRIS.Networking
 
             _socket.Emit("device:register", new DeviceRegisterPayload
             {
-                name = deviceName,
+                name = RegisterDeviceName,
                 type = deviceType
             });
 

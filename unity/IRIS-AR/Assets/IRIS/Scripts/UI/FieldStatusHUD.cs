@@ -31,6 +31,18 @@ namespace IRIS.UI
 
         private void Start()
         {
+            // Auto-wire dependencies if not assigned in the inspector so the HUD works
+            // even when the component is spawned dynamically (see EnsureSpawned below).
+            if (c2Client == null)
+            {
+                c2Client = FindObjectOfType<C2Client>();
+            }
+
+            if (calibrationManager == null)
+            {
+                calibrationManager = FindObjectOfType<CalibrationManager>();
+            }
+
             CreateHUD();
 
             if (c2Client != null)
@@ -45,6 +57,20 @@ namespace IRIS.UI
             }
 
             RefreshAll();
+        }
+
+        /// <summary>
+        /// Auto-spawn a FieldStatusHUD at runtime so it appears even if the component
+        /// was never dragged into the scene. Skips if one is already present.
+        /// </summary>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+        private static void EnsureSpawned()
+        {
+            if (FindObjectOfType<FieldStatusHUD>() != null) return;
+
+            var go = new GameObject("FieldStatusHUD (auto)");
+            go.AddComponent<FieldStatusHUD>();
+            DontDestroyOnLoad(go);
         }
 
         private void CreateHUD()
@@ -203,11 +229,11 @@ namespace IRIS.UI
             }
             else if (!calibrated)
             {
-                _hintText.text = "Press A to calibrate";
+                _hintText.text = "Press Y (left) to calibrate";
             }
             else
             {
-                _hintText.text = "Press A to place marker";
+                _hintText.text = "Press A (right) to place marker where you look";
             }
         }
 
