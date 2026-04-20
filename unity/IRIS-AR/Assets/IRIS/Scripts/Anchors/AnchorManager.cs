@@ -30,6 +30,9 @@ namespace IRIS.Anchors
         private readonly ConcurrentQueue<MarkerData> _pendingUpdated = new ConcurrentQueue<MarkerData>();
         private readonly ConcurrentQueue<string> _pendingDeleted = new ConcurrentQueue<string>();
 
+        /// <summary>Returns the count of active markers currently spawned.</summary>
+        public int ActiveMarkerCount => _activeAnchors.Count;
+
         private void Start()
         {
             ClearSpawnedAnchorsInScene();

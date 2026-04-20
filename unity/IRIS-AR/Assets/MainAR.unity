@@ -1214,7 +1214,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 104920b488e07b346b7421ac0f25b665, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  serverUrl: http://10.136.27.138:3000
+  serverUrl: http://128.61.222.202:3000
   deviceName: Quest3
   deviceType: ar-headset
   heartbeatInterval: 10

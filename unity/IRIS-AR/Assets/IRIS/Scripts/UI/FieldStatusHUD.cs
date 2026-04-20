@@ -9,20 +9,25 @@ namespace IRIS.UI
     {
         [SerializeField] private C2Client c2Client;
         [SerializeField] private CalibrationManager calibrationManager;
+        [SerializeField] private AnchorManager anchorManager;
 
         [Header("Layout")]
         [SerializeField] private float distanceFromCamera = 2.5f;
-        [SerializeField] private float downOffset = -0.6f;
-        [SerializeField] private float leftOffset = -0.8f;
+        [SerializeField] private float downOffset = -1.0f;
+        [SerializeField] private float leftOffset = -2.25f;
         [SerializeField] private float fontSize = 0.3f;
 
         private Canvas _canvas;
         private TextMeshProUGUI _connectionText;
         private TextMeshProUGUI _calibrationText;
+        private TextMeshProUGUI _markerCountText;
         private TextMeshProUGUI _hintText;
 
         private bool _lastConnected;
         private bool _lastCalibrated;
+
+        private float _statusCheckTimer;
+        private const float STATUS_CHECK_INTERVAL = 1.0f;
 
         private void Start()
         {
@@ -51,18 +56,25 @@ namespace IRIS.UI
             _canvas.renderMode = RenderMode.WorldSpace;
 
             var rt = _canvas.GetComponent<RectTransform>();
-            rt.sizeDelta = new Vector2(1f, 0.5f);
+            rt.sizeDelta = new Vector2(3.0f, 3.6f);
             rt.localScale = Vector3.one * 0.5f;
 
-            _connectionText = CreateLabel(rt, "ConnectionLabel", new Vector2(0f, 0.15f));
-            _calibrationText = CreateLabel(rt, "CalibrationLabel", new Vector2(0f, 0f));
-            _hintText = CreateLabel(rt, "HintLabel", new Vector2(0f, -0.15f));
+            _markerCountText = CreateLabel(rt, "MarkerCountLabel", new Vector2(4.5f, 4.25f));
+            _connectionText = CreateLabel(rt, "ConnectionLabel", new Vector2(0f, 0.25f));
+            _calibrationText = CreateLabel(rt, "CalibrationLabel", new Vector2(0f, -0.0f));
+            _hintText = CreateLabel(rt, "HintLabel", new Vector2(0f, -0.25f));
 
             if (_hintText != null)
             {
                 _hintText.fontStyle = FontStyles.Italic;
                 _hintText.fontSize = fontSize * 0.8f;
-                _hintText.color = new Color(0.85f, 0.85f, 0.85f);
+                _hintText.color = new Color(0.95f, 0.95f, 0.95f);
+            }
+
+            if (_markerCountText != null)
+            {
+                _markerCountText.fontSize = fontSize;
+                _markerCountText.color = new Color(0.7f, 0.85f, 0.95f); // light blue
             }
         }
 
@@ -104,6 +116,19 @@ namespace IRIS.UI
             _canvas.transform.rotation = Quaternion.LookRotation(forward, up);
         }
 
+        private void Update()
+        {
+            // Periodically poll connection state to ensure display stays in sync
+            // This acts as a safety net in case events are missed or delayed
+            _statusCheckTimer += Time.deltaTime;
+            if (_statusCheckTimer >= STATUS_CHECK_INTERVAL)
+            {
+                _statusCheckTimer = 0f;
+                RefreshConnection();
+                RefreshHint();
+            }
+        }
+
         private void OnConnectionChanged()
         {
             RefreshConnection();
@@ -116,12 +141,7 @@ namespace IRIS.UI
             RefreshHint();
         }
 
-        private void RefreshAll()
-        {
-            RefreshConnection();
-            RefreshCalibration();
-            RefreshHint();
-        }
+
 
         private void RefreshConnection()
         {
@@ -161,15 +181,27 @@ namespace IRIS.UI
             }
         }
 
+        private void RefreshMarkerCount()
+        {
+            if (_markerCountText == null) return;
+
+            int count = anchorManager != null ? anchorManager.ActiveMarkerCount : 0;
+            _markerCountText.text = $"Markers: {count}";
+            _markerCountText.color = new Color(0.7f, 0.85f, 0.95f); // light blue
+        }
+
         private void RefreshHint()
         {
             if (_hintText == null) return;
 
-            if (!_lastConnected)
+            bool connected = c2Client != null && c2Client.IsConnected;
+            bool calibrated = calibrationManager != null && calibrationManager.IsCalibrated;
+
+            if (!connected)
             {
                 _hintText.text = "Waiting for server...";
             }
-            else if (!_lastCalibrated)
+            else if (!calibrated)
             {
                 _hintText.text = "Press A to calibrate";
             }
@@ -177,6 +209,14 @@ namespace IRIS.UI
             {
                 _hintText.text = "Press A to place marker";
             }
+        }
+
+        private void RefreshAll()
+        {
+            RefreshConnection();
+            RefreshCalibration();
+            RefreshMarkerCount();
+            RefreshHint();
         }
 
         private void OnDestroy()

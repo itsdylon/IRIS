@@ -5,6 +5,7 @@ using UnityEngine.XR;
 using CesiumForUnity;
 using IRIS.Anchors;
 using IRIS.Networking;
+using IRIS.UI;
 
 namespace IRIS.Core
 {
@@ -43,6 +44,49 @@ namespace IRIS.Core
 
             Application.runInBackground = true;
             Debug.Log("[IRISManager] IRIS system initialized");
+
+            InitializeFieldStatusHUD();
+        }
+
+        private void InitializeFieldStatusHUD()
+        {
+            try
+            {
+                // Find dependencies in the scene
+                var calibrationManager = FindObjectOfType<CalibrationManager>();
+                var anchorManager = FindObjectOfType<AnchorManager>();
+
+                if (calibrationManager == null)
+                {
+                    Debug.LogWarning("[IRISManager] CalibrationManager not found; HUD cannot initialize");
+                    return;
+                }
+
+                // Create HUD GameObject and attach component
+                var hudGo = new GameObject("FieldStatusHUD_Instance");
+                var hud = hudGo.AddComponent<FieldStatusHUD>();
+
+                // Wire up references via reflection (private [SerializeField] fields)
+                var c2Field = typeof(FieldStatusHUD).GetField("c2Client", 
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                var calibField = typeof(FieldStatusHUD).GetField("calibrationManager", 
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                var anchorField = typeof(FieldStatusHUD).GetField("anchorManager", 
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+                if (c2Field != null)
+                    c2Field.SetValue(hud, c2Client);
+                if (calibField != null)
+                    calibField.SetValue(hud, calibrationManager);
+                if (anchorField != null)
+                    anchorField.SetValue(hud, anchorManager);
+
+                Debug.Log("[IRISManager] FieldStatusHUD initialized successfully");
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogError($"[IRISManager] Failed to initialize FieldStatusHUD: {ex.Message}");
+            }
         }
 
         private void Start()

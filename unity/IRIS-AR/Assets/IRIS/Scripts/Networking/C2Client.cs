@@ -36,6 +36,9 @@ namespace IRIS.Networking
         private string _deviceId;
         private Coroutine _heartbeatCoroutine;
 
+        /// <summary>Device ID assigned by server (set after device:registered event).</summary>
+        public string DeviceId => _deviceId;
+
         private void Start()
         {
             var uri = new Uri(serverUrl);
