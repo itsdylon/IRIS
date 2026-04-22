@@ -10,6 +10,7 @@ namespace IRIS.Anchors
         private static Mesh _tetraDown;
         private static Mesh _octahedron;
         private static Mesh _disc;
+        private static Mesh _sphere;
         private static Mesh _cross;
         private static Mesh _octagonPrism;
 
@@ -18,7 +19,7 @@ namespace IRIS.Anchors
             return type switch
             {
                 "threat" => TetraUp(),
-                "friendly" => Disc(),
+                "friendly" => Sphere(),
                 "waypoint" => Octahedron(),
                 "objective" => Octahedron(),
                 "extraction" => Cross(),
@@ -32,6 +33,7 @@ namespace IRIS.Anchors
         private static Mesh TetraDown() => _tetraDown ??= BuildTetrahedron(pointUp: false);
         private static Mesh Octahedron() => _octahedron ??= BuildOctahedron();
         private static Mesh Disc() => _disc ??= BuildDisc(segments: 24);
+        private static Mesh Sphere() => _sphere ??= BuildSphere(latitudeSegments: 12, longitudeSegments: 16, radius: 0.6f);
         private static Mesh Cross() => _cross ??= BuildCross();
         private static Mesh OctagonPrism() => _octagonPrism ??= BuildOctagonPrism();
 
@@ -92,6 +94,47 @@ namespace IRIS.Anchors
             }
 
             return BuildMesh("Disc", verts.ToArray(), tris.ToArray());
+        }
+
+        private static Mesh BuildSphere(int latitudeSegments, int longitudeSegments, float radius)
+        {
+            var verts = new List<Vector3>();
+            var tris = new List<int>();
+
+            for (int lat = 0; lat <= latitudeSegments; lat++)
+            {
+                float v = lat / (float)latitudeSegments;
+                float phi = v * Mathf.PI;
+                float y = Mathf.Cos(phi) * radius;
+                float ring = Mathf.Sin(phi) * radius;
+
+                for (int lon = 0; lon <= longitudeSegments; lon++)
+                {
+                    float u = lon / (float)longitudeSegments;
+                    float theta = u * Mathf.PI * 2f;
+                    verts.Add(new Vector3(Mathf.Cos(theta) * ring, y, Mathf.Sin(theta) * ring));
+                }
+            }
+
+            int row = longitudeSegments + 1;
+            for (int lat = 0; lat < latitudeSegments; lat++)
+            {
+                for (int lon = 0; lon < longitudeSegments; lon++)
+                {
+                    int current = lat * row + lon;
+                    int next = current + row;
+
+                    tris.Add(current);
+                    tris.Add(next);
+                    tris.Add(current + 1);
+
+                    tris.Add(current + 1);
+                    tris.Add(next);
+                    tris.Add(next + 1);
+                }
+            }
+
+            return BuildMesh("Sphere", verts.ToArray(), tris.ToArray());
         }
 
         private static Mesh BuildCross()

@@ -9,8 +9,10 @@ namespace IRIS.Anchors
         private const float PendingColorDimFactor = 0.6f;
         private const float PendingAlpha = 0.65f;
         private const float GroundPinWidth = 0.02f;
-        private static readonly Vector3 GlyphScale = Vector3.one * 2.35f;
-        private static readonly Vector3 GlyphLocalPos = new Vector3(0f, 1.15f, 0f);
+        private const float GlyphBounceHz = 1.4f;
+        private static readonly Vector3 GlyphScale = Vector3.one * 4.5f;
+        /// <summary>Higher default Y so markers hover well above head level. When you walk under them they only need to "come down" a small amount.</summary>
+        private static readonly Vector3 GlyphLocalPos = new Vector3(0f, 3.5f, 0f);
 
         /// <summary>Tactical scheme: threat=red ▲, friendly=blue ●, waypoint/objective=yellow ◆, extraction=green +, POI=orange ⯄, generic=white ▼.</summary>
         public static Color GetColorForType(string type) => type switch
@@ -31,26 +33,31 @@ namespace IRIS.Anchors
         [SerializeField] private float nearGlyphMeters = 7f;
         [Tooltip("Glyph scale multiplier when the marker is at or farther than this horizontal distance (smaller silhouette mid-range).")]
         [SerializeField] private float glyphScaleFarMeters = 11f;
-        [Tooltip("Glyph scale multiplier peaks when you are this close or closer.")]
+        [Tooltip("Glyph scale multiplier peaks when you are this close or closer. (Kept low to avoid 'in your face' when walking directly under.)")]
         [SerializeField] private float glyphScaleCloseMeters = 1.25f;
-        [SerializeField] private float minGlyphScaleMul = 0.55f;
-        [SerializeField] private float maxGlyphScaleMul = 2.65f;
+        [SerializeField] private float minGlyphScaleMul = 1.0f;
+        [SerializeField] private float maxGlyphScaleMul = 1.0f;
+        [Tooltip("Max up/down bob amount (meters) when close. Marker no longer shifts down with proximity.")]
+        [SerializeField] private float glyphProximityVerticalLiftMax = 0.02f;
 
-        [Header("Beacon (far)")]
-        [SerializeField] private float beaconColumnHeightMeters = 11f;
-        [SerializeField] private float beaconHelixRadius = 0.38f;
-        [SerializeField] private int beaconHelixSegments = 42;
-        [SerializeField] private float beaconHelixTurns = 2.25f;
-        [SerializeField] private float beaconFlowSpeed = 0.42f;
-        [SerializeField] private float beaconCoreMaxAlpha = 0.14f;
-        [SerializeField] private float beaconHelixMaxAlpha = 0.11f;
-        [SerializeField] private float beaconRingMaxAlpha = 0.07f;
-        [SerializeField] private float beaconPulseHz = 0.55f;
-        [SerializeField] private float beaconPulseAmplitude = 0.04f;
+        [Header("Waypoint / objective (yellow diamond)")]
+        [Tooltip("Uniform scale vs other types — octahedron is bulky at the same scale as the white tetra.")]
+        [SerializeField] private float waypointDiamondMeshScale = 0.82f;
+        [Tooltip("Extra local Y above the default glyph anchor so the diamond reads higher like other icons.")]
+        [SerializeField] private float waypointDiamondExtraHeight = 0.22f;
+
+        [Header("Beacon (far) — very tall column")]
+        [Tooltip("How tall the spinning beacon column/pole is (meters). Bumped very high so it's visible from practically anywhere.")]
+        [SerializeField] private float beaconColumnHeightMeters = 150f;
+        [Tooltip("Beam footprint = glyph localScale.x × this (matches icon width as it LOD-scales).")]
+        [SerializeField] private float beamWidthPerGlyphScale = 1f;
+        [SerializeField] private float beaconSpinDegreesPerSecond = 22f;
+        [SerializeField] private float beaconMaxAlpha = 0.4f;
+        [SerializeField] private float beaconPulseHz = 0.45f;
+        [SerializeField] private float beaconPulseAmplitude = 0.05f;
 
         [SerializeField] private Color anchorColor = Color.cyan;
         [SerializeField] private string label = "";
-
         private Renderer _renderer;
         private TextMeshPro _labelText;
         private MeshFilter _glyphMeshFilter;
@@ -58,13 +65,14 @@ namespace IRIS.Anchors
         private LineRenderer _groundPin;
 
         private Transform _beaconRoot;
-        private LineRenderer _beaconCore;
-        private LineRenderer _beaconHelix;
-        private LineRenderer _beaconRing;
-        private Material _beaconCoreMat;
-        private Material _beaconHelixMat;
-        private Material _beaconRingMat;
-        private Vector3[] _helixScratch;
+        private Transform _beaconSpinRoot;
+        private Renderer _beamFin0;
+        private Renderer _beamFin1;
+        private Material _beamFin0Mat;
+        private Material _beamFin1Mat;
+
+        private Vector3 _glyphScaleUniformBase = GlyphScale;
+        private Vector3 _glyphBaseLocalPos = GlyphLocalPos;
 
         private void Awake()
         {
@@ -116,9 +124,23 @@ namespace IRIS.Anchors
         private void ApplyGlyphMesh(string type)
         {
             if (_glyphMeshFilter == null) return;
-            _glyphMeshFilter.sharedMesh = MarkerGlyphMeshes.ForMarkerType(string.IsNullOrEmpty(type) ? "generic" : type);
-            _glyphTransform.localScale = GlyphScale;
-            _glyphTransform.localPosition = GlyphLocalPos;
+            var t = string.IsNullOrEmpty(type) ? "generic" : type;
+            _glyphMeshFilter.sharedMesh = MarkerGlyphMeshes.ForMarkerType(t);
+
+            _glyphScaleUniformBase = GlyphScale;
+            _glyphBaseLocalPos = GlyphLocalPos;
+            if (t == "waypoint" || t == "objective")
+            {
+                _glyphScaleUniformBase = GlyphScale * waypointDiamondMeshScale;
+                _glyphBaseLocalPos = GlyphLocalPos + Vector3.up * waypointDiamondExtraHeight;
+            }
+            else
+            {
+                _glyphBaseLocalPos = GlyphLocalPos;
+            }
+
+            _glyphTransform.localScale = _glyphScaleUniformBase;
+            _glyphTransform.localPosition = _glyphBaseLocalPos;
         }
 
         public void SetLabel(string text)
@@ -161,7 +183,9 @@ namespace IRIS.Anchors
                 if (_beaconRoot != null)
                     _beaconRoot.gameObject.SetActive(false);
                 ApplyColorToGlyphRenderer(anchorColor);
-                _glyphTransform.localScale = GlyphScale * Mathf.Lerp(minGlyphScaleMul, maxGlyphScaleMul, 0.5f);
+                float midMul = Mathf.Lerp(minGlyphScaleMul, maxGlyphScaleMul, 0.5f);
+                _glyphTransform.localScale = _glyphScaleUniformBase * midMul;
+                _glyphTransform.localPosition = _glyphBaseLocalPos;
                 return;
             }
 
@@ -172,10 +196,17 @@ namespace IRIS.Anchors
             float beaconWeight = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(nearGlyphMeters, farBeaconMeters, dist));
             float glyphWeight = 1f - beaconWeight;
 
-            float scaleT = Mathf.InverseLerp(glyphScaleFarMeters, glyphScaleCloseMeters, dist);
-            scaleT = Mathf.SmoothStep(0f, 1f, scaleT);
-            float scaleMul = Mathf.Lerp(minGlyphScaleMul, maxGlyphScaleMul, scaleT);
-            _glyphTransform.localScale = GlyphScale * scaleMul;
+            float scaleMul = minGlyphScaleMul;
+            _glyphTransform.localScale = _glyphScaleUniformBase * scaleMul;
+
+            float closeWeight = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(nearGlyphMeters, farBeaconMeters, dist));
+            float bounce = Mathf.Sin(Time.time * (Mathf.PI * 2f * GlyphBounceHz))
+                * glyphProximityVerticalLiftMax
+                * closeWeight;
+            _glyphTransform.localPosition = _glyphBaseLocalPos + Vector3.up * bounce;
+
+            if (_beaconSpinRoot != null)
+                _beaconSpinRoot.localPosition = _glyphTransform.localPosition;
 
             var glyphCol = anchorColor;
             glyphCol.a *= Mathf.Clamp01(glyphWeight + 0.1f);
@@ -189,15 +220,23 @@ namespace IRIS.Anchors
             if (!showBeacon)
                 return;
 
-            float pulse = 1f + beaconPulseAmplitude * Mathf.Sin(Time.time * (Mathf.PI * 2f * beaconPulseHz));
-            float helixAlpha = beaconHelixMaxAlpha * beaconWeight * pulse;
-            float coreAlpha = beaconCoreMaxAlpha * beaconWeight * pulse;
-            float ringAlpha = beaconRingMaxAlpha * beaconWeight;
+            if (_beaconSpinRoot != null)
+                _beaconSpinRoot.Rotate(0f, beaconSpinDegreesPerSecond * Time.deltaTime, 0f, Space.Self);
 
-            UpdateBeaconGeometry();
-            ApplyBeaconLineColors(_beaconCore, _beaconCoreMat, coreAlpha);
-            ApplyBeaconLineColors(_beaconHelix, _beaconHelixMat, helixAlpha);
-            ApplyBeaconLineColors(_beaconRing, _beaconRingMat, ringAlpha);
+            UpdateBeamFootprint();
+            float pulse = 1f + beaconPulseAmplitude * Mathf.Sin(Time.time * (Mathf.PI * 2f * beaconPulseHz));
+            float alpha = beaconMaxAlpha * beaconWeight * pulse;
+            ApplyBeamFinColor(_beamFin0Mat, alpha);
+            ApplyBeamFinColor(_beamFin1Mat, alpha);
+        }
+
+        private void UpdateBeamFootprint()
+        {
+            if (_beamFin0 == null || _beamFin1 == null) return;
+            float w = Mathf.Max(0.35f, _glyphTransform.localScale.x * beamWidthPerGlyphScale);
+            float h = beaconColumnHeightMeters;
+            _beamFin0.transform.localScale = new Vector3(w, h, 1f);
+            _beamFin1.transform.localScale = new Vector3(w, h, 1f);
         }
 
         private void ApplyColorToGlyphRenderer(Color c)
@@ -211,15 +250,25 @@ namespace IRIS.Anchors
                 m.color = c;
         }
 
+        private void ApplyBeamFinColor(Material mat, float alpha)
+        {
+            if (mat == null) return;
+            var c = new Color(anchorColor.r, anchorColor.g, anchorColor.b, alpha);
+            if (mat.HasProperty("_BaseColor"))
+                mat.SetColor("_BaseColor", c);
+            else
+                mat.color = c;
+        }
+
         private void EnsureBeaconFx()
         {
             if (_beaconRoot != null)
                 return;
 
-            var beamMatBase = CreateBeaconLineMaterial();
-            if (beamMatBase == null)
+            var template = CreateBeaconSurfaceMaterial();
+            if (template == null)
             {
-                Debug.LogWarning("[AnchorVisualizer] Beacon FX disabled — no compatible line material.");
+                Debug.LogWarning("[AnchorVisualizer] Beacon FX disabled — no compatible transparent material.");
                 return;
             }
 
@@ -229,106 +278,52 @@ namespace IRIS.Anchors
             _beaconRoot.localPosition = Vector3.zero;
             _beaconRoot.localRotation = Quaternion.identity;
 
-            _beaconCore = CreateBeaconLine(_beaconRoot, "BeaconCore", sortingOrder: -3, width: 0.028f, beamMatBase);
-            _beaconHelix = CreateBeaconLine(_beaconRoot, "BeaconHelix", sortingOrder: -2, width: 0.034f, beamMatBase);
-            _beaconRing = CreateBeaconLine(_beaconRoot, "BeaconRing", sortingOrder: -1, width: 0.022f, beamMatBase);
-            _beaconRing.loop = true;
+            var spinGo = new GameObject("BeaconSpin");
+            _beaconSpinRoot = spinGo.transform;
+            _beaconSpinRoot.SetParent(_beaconRoot, false);
+            _beaconSpinRoot.localPosition = GlyphLocalPos;
+            _beaconSpinRoot.localRotation = Quaternion.identity;
 
-            _beaconCoreMat = _beaconCore.material;
-            _beaconHelixMat = _beaconHelix.material;
-            _beaconRingMat = _beaconRing.material;
-            Destroy(beamMatBase);
-
-            _helixScratch = new Vector3[Mathf.Max(8, beaconHelixSegments)];
-        }
-
-        private static LineRenderer CreateBeaconLine(Transform parent, string name, int sortingOrder, float width, Material template)
-        {
-            var go = new GameObject(name);
-            go.transform.SetParent(parent, false);
-            var lr = go.AddComponent<LineRenderer>();
-            lr.useWorldSpace = false;
-            lr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            lr.receiveShadows = false;
-            lr.sortingOrder = sortingOrder;
-            lr.textureMode = LineTextureMode.Stretch;
-            lr.numCapVertices = 3;
-            lr.numCornerVertices = 2;
-            lr.startWidth = width;
-            lr.endWidth = width * 0.65f;
-            if (template != null)
-                lr.material = new Material(template);
-            return lr;
-        }
-
-        private void UpdateBeaconGeometry()
-        {
             float h = beaconColumnHeightMeters;
-            float phase = Time.time * beaconFlowSpeed;
+            _beamFin0 = CreateVerticalBeamFin(_beaconSpinRoot, "BeamFin0", 0f, h, template);
+            _beamFin1 = CreateVerticalBeamFin(_beaconSpinRoot, "BeamFin1", 90f, h, template);
 
-            if (_beaconCore != null)
-            {
-                _beaconCore.positionCount = 2;
-                _beaconCore.SetPosition(0, Vector3.zero);
-                _beaconCore.SetPosition(1, new Vector3(0f, h, 0f));
-            }
+            _beamFin0Mat = _beamFin0.material;
+            _beamFin1Mat = _beamFin1.material;
+            Destroy(template);
 
-            if (_beaconHelix != null)
-            {
-                int n = Mathf.Max(4, beaconHelixSegments);
-                if (_helixScratch == null || _helixScratch.Length < n)
-                    _helixScratch = new Vector3[n];
-
-                _beaconHelix.positionCount = n;
-                float turns = beaconHelixTurns * Mathf.PI * 2f;
-                for (int i = 0; i < n; i++)
-                {
-                    float t = n == 1 ? 0f : i / (float)(n - 1);
-                    float y = t * h;
-                    float taper = 0.35f + 0.65f * t;
-                    float ang = t * turns + phase;
-                    float r = beaconHelixRadius * taper;
-                    _helixScratch[i] = new Vector3(Mathf.Cos(ang) * r, y, Mathf.Sin(ang) * r);
-                    _beaconHelix.SetPosition(i, _helixScratch[i]);
-                }
-            }
-
-            if (_beaconRing != null)
-            {
-                const int ringPts = 20;
-                _beaconRing.positionCount = ringPts;
-                float ringY = h * 0.94f;
-                float rRing = beaconHelixRadius * 2.1f;
-                float rot = Time.time * 0.38f;
-                for (int i = 0; i < ringPts; i++)
-                {
-                    float ang = rot + (i / (float)ringPts) * Mathf.PI * 2f;
-                    _beaconRing.SetPosition(i, new Vector3(Mathf.Cos(ang) * rRing, ringY, Mathf.Sin(ang) * rRing));
-                }
-            }
+            UpdateBeamFootprint();
         }
 
-        private void ApplyBeaconLineColors(LineRenderer lr, Material mat, float alpha)
+        /// <summary>
+        /// Two crossed vertical quads in the XY plane (Unity Quad default); Y is world-up column height.
+        /// Spinning the parent rotates the whole cross as one volume.
+        /// </summary>
+        private static Renderer CreateVerticalBeamFin(Transform parent, string name, float yDegrees, float columnHeight, Material template)
         {
-            if (lr == null) return;
-            var c = new Color(anchorColor.r, anchorColor.g, anchorColor.b, alpha);
-            lr.startColor = c;
-            lr.endColor = new Color(anchorColor.r, anchorColor.g, anchorColor.b, alpha * 0.35f);
+            var go = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            go.name = name;
+            go.transform.SetParent(parent, false);
+            Object.Destroy(go.GetComponent<Collider>());
 
-            if (mat != null)
-            {
-                if (mat.HasProperty("_BaseColor"))
-                    mat.SetColor("_BaseColor", c);
-                else
-                    mat.color = c;
-            }
+            go.transform.localPosition = new Vector3(0f, columnHeight * 0.5f, 0f);
+            go.transform.localRotation = Quaternion.Euler(0f, yDegrees, 0f);
+            go.transform.localScale = Vector3.one;
+
+            var r = go.GetComponent<MeshRenderer>();
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            r.receiveShadows = false;
+            r.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
+            r.reflectionProbeUsage = UnityEngine.Rendering.ReflectionProbeUsage.Off;
+            if (template != null)
+                r.material = new Material(template);
+            return r;
         }
 
         private void OnDestroy()
         {
-            if (_beaconCoreMat != null) Destroy(_beaconCoreMat);
-            if (_beaconHelixMat != null) Destroy(_beaconHelixMat);
-            if (_beaconRingMat != null) Destroy(_beaconRingMat);
+            if (_beamFin0Mat != null) Destroy(_beamFin0Mat);
+            if (_beamFin1Mat != null) Destroy(_beamFin1Mat);
         }
 
         private void AddGroundPin()
@@ -374,11 +369,14 @@ namespace IRIS.Anchors
             return null;
         }
 
-        private static Material CreateBeaconLineMaterial()
+        private static Material CreateBeaconSurfaceMaterial()
         {
             var m = CreateGroundPinLineMaterial();
             if (m == null) return null;
-            return new Material(m) { renderQueue = 3000 };
+            var inst = new Material(m) { renderQueue = 3000 };
+            if (inst.HasProperty("_Cull"))
+                inst.SetFloat("_Cull", (float)UnityEngine.Rendering.CullMode.Off);
+            return inst;
         }
     }
 }
